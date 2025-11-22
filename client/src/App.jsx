@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, Moon, Sun } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -22,7 +22,6 @@ export default function App() {
   // const [theme, setTheme] = useState('dark')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userRole, setUserRole] = useState(null)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const isLandingPage = location.pathname === '/'
 
@@ -69,11 +68,6 @@ export default function App() {
       }
     }
   }, [location.pathname, navigate])
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [location.pathname])
 
   // Handle logo click
   const handleLogoClick = (e) => {
@@ -257,38 +251,6 @@ export default function App() {
           from {
             opacity: 0;
             transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-in {
-          animation: slideIn 0.2s ease-out;
-        }
-
-        .fade-in {
-          animation: fadeIn 0.2s ease-out;
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        .slide-in-from-top-2 {
-          animation: slideInFromTop 0.2s ease-out;
-        }
-
-        @keyframes slideInFromTop {
-          from {
-            opacity: 0;
-            transform: translateY(-8px);
           }
           to {
             opacity: 1;
