@@ -27,19 +27,44 @@ model User {
   googleId      String?   @unique
   profileImage  String?
   role          UserRole  @default(STAFF)
+  employeeId    String?   @unique
+  warehouseId   String?
+  warehouse     Warehouse? @relation("UserWarehouse", fields: [warehouseId], references: [id], onDelete: SetNull)
+  designation   String?
+  joiningDate   DateTime?
+  status        String?   @default("active") // active, inactive
+  lastLogin     DateTime?
+  passwordChangedAt DateTime?
   isVerified    Boolean   @default(false)
   otp           String?
   otpExpires    DateTime?
+  createdById   String?
+  createdBy     User?     @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relations
   receiptsCreated       Receipt[]        @relation("ReceiptCreatedBy")
+  receiptsAssigned      Receipt[]        @relation("ReceiptAssignedTo")
+  receiptsAccepted      Receipt[]        @relation("ReceiptAcceptedBy")
+  receiptsCompleted     Receipt[]        @relation("ReceiptCompletedBy")
   deliveriesCreated     DeliveryOrder[]  @relation("DeliveryCreatedBy")
+  deliveriesAssigned    DeliveryOrder[]  @relation("DeliveryAssignedTo")
+  deliveriesAccepted    DeliveryOrder[]  @relation("DeliveryAcceptedBy")
+  deliveriesCompleted   DeliveryOrder[]  @relation("DeliveryCompletedBy")
   transfersCreated      InternalTransfer[] @relation("TransferCreatedBy")
+  transfersAssigned     InternalTransfer[] @relation("TransferAssignedTo")
+  transfersAccepted     InternalTransfer[] @relation("TransferAcceptedBy")
+  transfersCompleted    InternalTransfer[] @relation("TransferCompletedBy")
   adjustmentsCreated    StockAdjustment[] @relation("AdjustmentCreatedBy")
+  activityLogs          ActivityLog[]
+  staffPermissions      StaffPermissions?
+  createdUsers           User[]            @relation("UserCreatedBy")
 
   @@index([email])
+  @@index([warehouseId])
+  @@index([employeeId])
+  @@index([status])
 }
 
 enum UserRole {
@@ -67,6 +92,7 @@ model Warehouse {
 
   // Relations
   locations           Location[]
+  users               User[]              @relation("UserWarehouse")
   stock               Stock[]
   receipts            Receipt[]
   deliveries          DeliveryOrder[]
@@ -260,6 +286,14 @@ model Receipt {
   notes           String?
   createdById     String
   createdBy       User          @relation("ReceiptCreatedBy", fields: [createdById], references: [id])
+  assignedToId    String?
+  assignedTo      User?         @relation("ReceiptAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  acceptedById    String?
+  acceptedBy      User?         @relation("ReceiptAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedAt      DateTime?
+  completedById   String?
+  completedBy     User?         @relation("ReceiptCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -271,6 +305,8 @@ model Receipt {
   @@index([warehouseId])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedToId])
+  @@index([acceptedById])
 }
 
 model ReceiptItem {
@@ -334,6 +370,14 @@ model DeliveryOrder {
   notes           String?
   createdById     String
   createdBy       User          @relation("DeliveryCreatedBy", fields: [createdById], references: [id])
+  assignedToId   String?
+  assignedTo     User?         @relation("DeliveryAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  acceptedById    String?
+  acceptedBy      User?         @relation("DeliveryAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedAt      DateTime?
+  completedById   String?
+  completedBy     User?         @relation("DeliveryCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -345,6 +389,8 @@ model DeliveryOrder {
   @@index([warehouseId])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedToId])
+  @@index([acceptedById])
 }
 
 model DeliveryItem {
@@ -386,6 +432,14 @@ model InternalTransfer {
   notes             String?
   createdById       String
   createdBy         User          @relation("TransferCreatedBy", fields: [createdById], references: [id])
+  assignedToId      String?
+  assignedTo        User?         @relation("TransferAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  acceptedById      String?
+  acceptedBy        User?         @relation("TransferAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedAt        DateTime?
+  completedById     String?
+  completedBy       User?         @relation("TransferCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt       DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -397,6 +451,8 @@ model InternalTransfer {
   @@index([toWarehouseId])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedToId])
+  @@index([acceptedById])
 }
 
 model TransferItem {
@@ -466,6 +522,44 @@ enum AdjustmentReason {
   LOST
   FOUND
   OTHER
+}
+
+// ============================================
+// ACTIVITY LOG
+// ============================================
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  taskType    String    // 'receipt', 'delivery', 'transfer', 'adjustment'
+  taskId      String
+  reference   String?
+  action      String    // 'created', 'accepted', 'validated', 'completed', 'canceled'
+  performedById String
+  performedBy User      @relation(fields: [performedById], references: [id], onDelete: Cascade)
+  details     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([taskType, taskId])
+  @@index([performedById])
+  @@index([createdAt])
+}
+
+// ============================================
+// STAFF PERMISSIONS
+// ============================================
+
+model StaffPermissions {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  canReceipt  Boolean   @default(true)
+  canDelivery Boolean   @default(true)
+  canTransfer Boolean   @default(true)
+  canAdjust   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 enum DocumentStatus {

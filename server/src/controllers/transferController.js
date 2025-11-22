@@ -467,11 +467,72 @@ const cancelInternalTransfer = async (req, res) => {
   }
 };
 
+// Accept transfer task (staff)
+const acceptTransfer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const transfer = await prisma.$transaction(async (tx) => {
+      const existing = await tx.internalTransfer.findUnique({
+        where: { id }
+      });
+
+      if (!existing) {
+        throw new Error('Transfer not found');
+      }
+
+      if (existing.assignedToId && existing.assignedToId !== userId) {
+        throw new Error('Transfer already assigned to another staff member');
+      }
+
+      const updated = await tx.internalTransfer.update({
+        where: { id },
+        data: {
+          assignedToId: userId,
+          acceptedById: userId,
+          acceptedAt: new Date()
+        },
+        include: {
+          fromWarehouse: true,
+          toWarehouse: true,
+          fromLocation: true,
+          toLocation: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          taskType: 'transfer',
+          taskId: id,
+          reference: existing.transferNumber,
+          action: 'accepted',
+          performedById: userId,
+          details: `Transfer ${existing.transferNumber} accepted by staff`
+        }
+      });
+
+      return updated;
+    });
+
+    res.json(transfer);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error accepting transfer', error: error.message });
+  }
+};
+
 module.exports = {
   getInternalTransfers,
   getInternalTransferById,
   createInternalTransfer,
   updateInternalTransfer,
   validateInternalTransfer,
-  cancelInternalTransfer
+  cancelInternalTransfer,
+  acceptTransfer
 };

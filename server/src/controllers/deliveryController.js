@@ -439,9 +439,16 @@ const validateDelivery = async (req, res) => {
         );
       }
 
+      const userId = req.user.id;
       const updatedDelivery = await prisma.deliveryOrder.update({
         where: { id },
-        data: { status: newStatus },
+        data: { 
+          status: newStatus,
+          ...(newStatus === 'DONE' && {
+            completedById: userId,
+            completedAt: new Date()
+          })
+        },
         include: {
           customer: true,
           warehouse: true,
@@ -522,11 +529,14 @@ const validateDelivery = async (req, res) => {
         }
 
         // Update delivery status to DONE
-        return await tx.deliveryOrder.update({
+        const userId = req.user.id;
+        const updatedDelivery = await tx.deliveryOrder.update({
           where: { id },
           data: {
             status: 'DONE',
-            deliveredDate: new Date()
+            deliveredDate: new Date(),
+            completedById: userId,
+            completedAt: new Date()
           },
           include: {
             customer: true,
@@ -538,6 +548,20 @@ const validateDelivery = async (req, res) => {
             }
           }
         });
+
+        // Create activity log
+        await tx.activityLog.create({
+          data: {
+            taskType: 'delivery',
+            taskId: id,
+            reference: delivery.deliveryNumber,
+            action: 'completed',
+            performedById: userId,
+            details: `Delivery ${delivery.deliveryNumber} completed and stock decreased`
+          }
+        });
+
+        return updatedDelivery;
       });
 
       return res.json(result);
@@ -550,6 +574,64 @@ const validateDelivery = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error validating delivery', error: error.message });
+  }
+};
+
+// Accept delivery task (staff)
+const acceptDelivery = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const delivery = await prisma.$transaction(async (tx) => {
+      const existing = await tx.deliveryOrder.findUnique({
+        where: { id }
+      });
+
+      if (!existing) {
+        throw new Error('Delivery not found');
+      }
+
+      if (existing.assignedToId && existing.assignedToId !== userId) {
+        throw new Error('Delivery already assigned to another staff member');
+      }
+
+      const updated = await tx.deliveryOrder.update({
+        where: { id },
+        data: {
+          assignedToId: userId,
+          acceptedById: userId,
+          acceptedAt: new Date()
+        },
+        include: {
+          customer: true,
+          warehouse: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      await tx.activityLog.create({
+        data: {
+          taskType: 'delivery',
+          taskId: id,
+          reference: existing.deliveryNumber,
+          action: 'accepted',
+          performedById: userId,
+          details: `Delivery ${existing.deliveryNumber} accepted by staff`
+        }
+      });
+
+      return updated;
+    });
+
+    res.json(delivery);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error accepting delivery', error: error.message });
   }
 };
 
@@ -589,5 +671,6 @@ module.exports = {
   pickDeliveryItems,
   packDeliveryItems,
   validateDelivery,
-  cancelDelivery
+  cancelDelivery,
+  acceptDelivery
 };

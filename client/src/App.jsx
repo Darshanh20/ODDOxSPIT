@@ -18,6 +18,8 @@ import DeliveryDetail from './pages/DeliveryDetail'
 import StockAdjustment from './pages/StockAdjustment'
 import MoveHistory from './pages/MoveHistory'
 import ReceiptDetail from './pages/ReceiptDetail'
+import StaffDashboard from './pages/StaffDashboard'
+import StaffManagement from './pages/StaffManagement'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { useTheme } from './contexts/ThemeContext'
@@ -67,6 +69,8 @@ export default function App() {
         const payload = JSON.parse(atob(token.split('.')[1]))
         if (payload.role === 'ADMIN' || payload.role === 'MANAGER') {
           navigate('/admin/dashboard')
+        } else if (payload.role === 'STAFF') {
+          navigate('/staff/dashboard')
         } else {
           navigate('/home')
         }
@@ -82,6 +86,8 @@ export default function App() {
       e.preventDefault()
       if (userRole === 'ADMIN' || userRole === 'MANAGER') {
         navigate('/admin/dashboard')
+      } else if (userRole === 'STAFF') {
+        navigate('/staff/dashboard')
       } else {
         navigate('/home')
       }
@@ -238,6 +244,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <Location />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/staff-management" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StaffManagement />
                 </Layout>
               </ProtectedRoute>
             } 

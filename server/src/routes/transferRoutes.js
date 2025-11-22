@@ -6,7 +6,8 @@ const {
   createInternalTransfer,
   updateInternalTransfer,
   validateInternalTransfer,
-  cancelInternalTransfer
+  cancelInternalTransfer,
+  acceptTransfer
 } = require('../controllers/transferController');
 const { protect } = require('../middlewares/authMiddleware');
 
@@ -20,5 +21,6 @@ router.post('/', createInternalTransfer);
 router.put('/:id', updateInternalTransfer);
 router.post('/:id/validate', validateInternalTransfer);
 router.post('/:id/cancel', cancelInternalTransfer);
+router.post('/:id/accept', acceptTransfer);
 
 module.exports = router;

@@ -12,6 +12,7 @@ import {
   Warehouse,
   MapPin,
   User,
+  Users,
   LogOut,
   Search,
   Bell,
@@ -57,7 +58,7 @@ export default function Layout({ children }) {
   }
 
   // Get user info from localStorage or token
-  const [user, setUser] = useState({ name: 'User', email: '' })
+  const [user, setUser] = useState({ name: 'User', email: '', role: null })
 
   useEffect(() => {
     // Try to get user info from token (you can decode JWT or fetch from API)
@@ -67,7 +68,7 @@ export default function Layout({ children }) {
       return
     }
 
-    // Decode JWT to get user ID
+    // Decode JWT to get user ID and role
     try {
       const base64Url = token.split('.')[1]
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
@@ -88,13 +89,15 @@ export default function Layout({ children }) {
             const data = await res.json()
             setUser({
               name: data.name || data.username || 'User',
-              email: data.email || ''
+              email: data.email || '',
+              role: data.role || decoded.role || 'STAFF'
             })
           }
         })
         .catch((err) => {
           console.error('Error fetching user:', err)
           // Use default values if fetch fails
+          setUser(prev => ({ ...prev, role: decoded.role || 'STAFF' }))
         })
     } catch (err) {
       console.error('Token decode error:', err)
@@ -106,7 +109,8 @@ export default function Layout({ children }) {
     navigate('/')
   }
 
-  const menuItems = [
+  // Menu items based on user role
+  const adminMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/home' },
     { icon: Package, label: 'Products', path: '/products' },
     { icon: FileText, label: 'Receipts', path: '/receipts' },
@@ -116,9 +120,19 @@ export default function Layout({ children }) {
     { icon: History, label: 'Move History', path: '/move-history' },
   ]
 
+  const staffMenuItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/staff/dashboard' },
+    { icon: FileText, label: 'Receipts', path: '/receipts' },
+    { icon: Truck, label: 'Deliveries', path: '/deliveries' },
+    { icon: ArrowRightLeft, label: 'Transfers', path: '/transfers' },
+  ]
+
+  const menuItems = (user.role === 'ADMIN' || user.role === 'MANAGER') ? adminMenuItems : staffMenuItems
+
   const settingsSubmenu = [
     { icon: Warehouse, label: 'Warehouse', path: '/warehouse' },
     { icon: MapPin, label: 'Location', path: '/location' },
+    { icon: Users, label: 'Staff Management', path: '/staff-management' },
   ]
 
   const isActive = (path) => {
@@ -126,7 +140,7 @@ export default function Layout({ children }) {
   }
 
   const isSettingsActive = () => {
-    return location.pathname === '/warehouse' || location.pathname === '/location' || location.pathname === '/settings'
+    return location.pathname === '/warehouse' || location.pathname === '/location' || location.pathname === '/staff-management' || location.pathname === '/settings'
   }
 
   return (
@@ -217,36 +231,37 @@ export default function Layout({ children }) {
                 )
               })}
               
-              {/* Settings with Dropdown */}
-              <li>
-                <button
-                  onClick={() => {
-                    setSettingsDropdownOpen(!settingsDropdownOpen)
-                    if (sidebarOpen === false) {
-                      setSidebarOpen(true)
-                    }
-                  }}
-                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isSettingsActive()
-                      ? 'bg-gray-800 dark:bg-gray-700 text-white'
-                      : 'text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 hover:text-white'
-                  }`}
-                  title={!sidebarOpen ? 'Settings' : ''}
-                >
-                  <div className="flex items-center gap-3">
-                    <Settings className="w-5 h-5 flex-shrink-0" />
-                    {sidebarOpen && <span className="font-medium">Settings</span>}
-                  </div>
-                  {sidebarOpen && (
-                    settingsDropdownOpen ? (
-                      <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                    )
-                  )}
-                </button>
-                
-                {/* Settings Dropdown Submenu */}
+              {/* Settings with Dropdown - Only for Admin/Manager */}
+              {(user.role === 'ADMIN' || user.role === 'MANAGER') && (
+                <li>
+                  <button
+                    onClick={() => {
+                      setSettingsDropdownOpen(!settingsDropdownOpen)
+                      if (sidebarOpen === false) {
+                        setSidebarOpen(true)
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      isSettingsActive()
+                        ? 'bg-gray-800 dark:bg-gray-700 text-white'
+                        : 'text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 hover:text-white'
+                    }`}
+                    title={!sidebarOpen ? 'Settings' : ''}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Settings className="w-5 h-5 flex-shrink-0" />
+                      {sidebarOpen && <span className="font-medium">Settings</span>}
+                    </div>
+                    {sidebarOpen && (
+                      settingsDropdownOpen ? (
+                        <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                      )
+                    )}
+                  </button>
+                  
+                  {/* Settings Dropdown Submenu */}
                 {settingsDropdownOpen && sidebarOpen && (
                   <ul className="mt-1 ml-4 space-y-1 border-l-2 border-gray-700 dark:border-gray-600 pl-2">
                     {settingsSubmenu.map((subItem) => {
@@ -274,7 +289,8 @@ export default function Layout({ children }) {
                     })}
                   </ul>
                 )}
-              </li>
+                </li>
+              )}
               
               {/* Profile */}
               <li>

@@ -355,11 +355,14 @@ const validateReceipt = async (req, res) => {
       }
 
       // Update receipt status
-      return await tx.receipt.update({
+      const userId = req.user.id;
+      const updatedReceipt = await tx.receipt.update({
         where: { id },
         data: {
           status: 'DONE',
-          receivedDate: new Date()
+          receivedDate: new Date(),
+          completedById: userId,
+          completedAt: new Date()
         },
         include: {
           supplier: true,
@@ -371,12 +374,87 @@ const validateReceipt = async (req, res) => {
           }
         }
       });
+
+      // Create activity log
+      await tx.activityLog.create({
+        data: {
+          taskType: 'receipt',
+          taskId: id,
+          reference: receipt.receiptNumber,
+          action: 'completed',
+          performedById: userId,
+          details: `Receipt ${receipt.receiptNumber} validated and stock increased`
+        }
+      });
+
+      return updatedReceipt;
     });
 
     res.json(result);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error validating receipt', error: error.message });
+  }
+};
+
+// Accept receipt task (staff)
+const acceptReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Use transaction to prevent race condition
+    const receipt = await prisma.$transaction(async (tx) => {
+      const existing = await tx.receipt.findUnique({
+        where: { id }
+      });
+
+      if (!existing) {
+        throw new Error('Receipt not found');
+      }
+
+      if (existing.assignedToId && existing.assignedToId !== userId) {
+        throw new Error('Receipt already assigned to another staff member');
+      }
+
+      // Update receipt with assignment
+      const updated = await tx.receipt.update({
+        where: { id },
+        data: {
+          assignedToId: userId,
+          acceptedById: userId,
+          acceptedAt: new Date()
+        },
+        include: {
+          supplier: true,
+          warehouse: true,
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      // Create activity log
+      await tx.activityLog.create({
+        data: {
+          taskType: 'receipt',
+          taskId: id,
+          reference: existing.receiptNumber,
+          action: 'accepted',
+          performedById: userId,
+          details: `Receipt ${existing.receiptNumber} accepted by staff`
+        }
+      });
+
+      return updated;
+    });
+
+    res.json(receipt);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error accepting receipt', error: error.message });
   }
 };
 
@@ -414,5 +492,6 @@ module.exports = {
   createReceipt,
   updateReceipt,
   validateReceipt,
-  cancelReceipt
+  cancelReceipt,
+  acceptReceipt
 };

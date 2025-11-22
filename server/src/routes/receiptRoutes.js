@@ -6,7 +6,8 @@ const {
   createReceipt,
   updateReceipt,
   validateReceipt,
-  cancelReceipt
+  cancelReceipt,
+  acceptReceipt
 } = require('../controllers/receiptController');
 const { protect } = require('../middlewares/authMiddleware');
 
@@ -20,5 +21,6 @@ router.post('/', createReceipt);
 router.put('/:id', updateReceipt);
 router.post('/:id/validate', validateReceipt);
 router.post('/:id/cancel', cancelReceipt);
+router.post('/:id/accept', acceptReceipt);
 
 module.exports = router;

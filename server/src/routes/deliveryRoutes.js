@@ -8,7 +8,8 @@ const {
   pickDeliveryItems,
   packDeliveryItems,
   validateDelivery,
-  cancelDelivery
+  cancelDelivery,
+  acceptDelivery
 } = require('../controllers/deliveryController');
 const { protect } = require('../middlewares/authMiddleware');
 
@@ -24,5 +25,6 @@ router.post('/:id/pick', pickDeliveryItems);
 router.post('/:id/pack', packDeliveryItems);
 router.post('/:id/validate', validateDelivery);
 router.post('/:id/cancel', cancelDelivery);
+router.post('/:id/accept', acceptDelivery);
 
 module.exports = router;
