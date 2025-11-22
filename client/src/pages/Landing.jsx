@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Package, BarChart3, Lock, Zap, Users, AlertCircle } from 'lucide-react'
+/* DASHBOARD SNAPSHOT - toggle on production as needed | Design ref: /mnt/data/StockMaster.pdf */
+import DashboardSnapshot from '../components/DashboardSnapshot'
 
 export default function Landing() {
   const [isVisible, setIsVisible] = useState(false)
@@ -83,6 +85,9 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      {/* DASHBOARD SNAPSHOT - toggle on production as needed */}
+      <DashboardSnapshot />
 
       {/* CTA Section */}
       <section className={`bg-gray-900 dark:bg-gray-800 text-white py-16 transition-all duration-1000 ${
