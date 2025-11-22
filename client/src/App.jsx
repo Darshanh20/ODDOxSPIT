@@ -17,14 +17,27 @@ export default function App() {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const isLandingPage = location.pathname === '/'
 
-  // Check authentication status on mount and location change
+  // Check authentication status and user role on mount and location change
   useEffect(() => {
     const token = localStorage.getItem('token')
-    setIsLoggedIn(!!token)
+    if (token) {
+      setIsLoggedIn(true)
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setUserRole(payload.role)
+      } catch (err) {
+        console.error('Failed to parse token:', err)
+        setUserRole(null)
+      }
+    } else {
+      setIsLoggedIn(false)
+      setUserRole(null)
+    }
   }, [location.pathname])
 
   // Handle scroll effect
@@ -36,11 +49,20 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Redirect to home if user is logged in and tries to access login/signup
+  // Redirect to appropriate dashboard if user is logged in and tries to access login/signup
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token && (location.pathname === '/login' || location.pathname === '/signup')) {
-      navigate('/home')
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        if (payload.role === 'ADMIN' || payload.role === 'MANAGER') {
+          navigate('/admin/dashboard')
+        } else {
+          navigate('/home')
+        }
+      } catch (err) {
+        navigate('/home')
+      }
     }
   }, [location.pathname, navigate])
 
@@ -53,8 +75,11 @@ export default function App() {
   const handleLogoClick = (e) => {
     if (isLoggedIn) {
       e.preventDefault()
-      // Refresh the current page
-      window.location.reload()
+      if (userRole === 'ADMIN' || userRole === 'MANAGER') {
+        navigate('/admin/dashboard')
+      } else {
+        navigate('/home')
+      }
     }
   }
 
@@ -62,40 +87,102 @@ export default function App() {
   const showNavbar = isLandingPage && !isLoggedIn
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      {showNavbar && (
-        <header className={`sticky top-0 z-50 transition-all duration-300 ${
-          scrolled ? 'border-b border-gray-200 shadow-sm' : 'border-b border-gray-100'
-        } bg-white`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              {/* Logo */}
-              <Link 
-                to="/" 
-                className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors cursor-pointer"
-              >
-                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                  SM
-                </div>
-                <span>StockMaster</span>
-              </Link>
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
+      <header className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled ? 'border-b border-gray-200 dark:border-gray-700 shadow-sm' : 'border-b border-gray-100 dark:border-gray-800'
+      } bg-white dark:bg-gray-900`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link 
+              to={isLoggedIn ? "#" : "/"} 
+              onClick={handleLogoClick}
+              className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+              title={isLoggedIn ? "Go to dashboard" : "Go to home"}
+            >
+              <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 text-sm font-bold">
+                SM
+              </div>
+              <span>StockMaster</span>
+            </Link>
 
-              {/* Desktop Navigation */}
-              <nav className="hidden md:flex items-center gap-8">
-                <Link 
-                  to="/login" 
-                  className="text-gray-700 font-medium hover:text-gray-900 transition-colors relative group"
-                >
-                  Login
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-900 group-hover:w-full transition-all duration-300"></span>
-                </Link>
-                <Link 
-                  to="/signup" 
-                  className="px-6 py-2 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-all duration-300 hover:shadow-md"
-                >
-                  Sign Up
-                </Link>
-              </nav>
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-4">
+              {/* Theme Toggle Button */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label="Toggle theme"
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-5 h-5 text-yellow-400" />
+                ) : (
+                  <Moon className="w-5 h-5 text-gray-700" />
+                )}
+              </button>
+              
+              {isLandingPage && !isLoggedIn ? (
+                <>
+                  <Link 
+                    to="/login" 
+                    className="text-gray-700 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-white transition-colors relative group"
+                  >
+                    Login
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-900 dark:bg-white group-hover:w-full transition-all duration-300"></span>
+                  </Link>
+                  <Link 
+                    to="/signup" 
+                    className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-300 hover:shadow-md"
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              ) : isLoggedIn ? (
+                <>
+                  <Link 
+                    to="/profile" 
+                    className="text-gray-700 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-white transition-colors relative group"
+                  >
+                    Profile
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-900 dark:bg-white group-hover:w-full transition-all duration-300"></span>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('token')
+                      setIsLoggedIn(false)
+                      navigate('/')
+                    }}
+                    className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-300"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    to="/" 
+                    className="text-gray-700 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-white transition-colors relative group"
+                  >
+                    Home
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-900 dark:bg-white group-hover:w-full transition-all duration-300"></span>
+                  </Link>
+                  <Link 
+                    to="/login" 
+                    className="text-gray-700 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-white transition-colors relative group"
+                  >
+                    Login
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-900 dark:bg-white group-hover:w-full transition-all duration-300"></span>
+                  </Link>
+                  <Link 
+                    to="/signup" 
+                    className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-300 hover:shadow-md"
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
+            </nav>
 
               {/* Mobile menu button */}
               <button 
@@ -111,28 +198,71 @@ export default function App() {
               </button>
             </div>
 
-            {/* Mobile Navigation */}
-            {mobileMenuOpen && (
-              <div className="md:hidden border-t border-gray-100 py-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                <nav className="flex flex-col gap-3">
-                  <Link 
-                    to="/login"
-                    className="px-4 py-2 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Login
-                  </Link>
-                  <Link 
-                    to="/signup"
-                    className="px-4 py-2 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
-                  >
-                    Sign Up
-                  </Link>
-                </nav>
-              </div>
-            )}
-          </div>
-        </header>
-      )}
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100 dark:border-gray-800 py-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <nav className="flex flex-col gap-3">
+                {isLandingPage && !isLoggedIn ? (
+                  <>
+                    <Link 
+                      to="/login"
+                      className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Login
+                    </Link>
+                    <Link 
+                      to="/signup"
+                      className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                ) : isLoggedIn ? (
+                  <>
+                    <Link 
+                      to="/profile"
+                      className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('token')
+                        setIsLoggedIn(false)
+                        navigate('/')
+                      }}
+                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-left"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link 
+                      to="/"
+                      className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Home
+                    </Link>
+                    <Link 
+                      to="/login"
+                      className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      Login
+                    </Link>
+                    <Link 
+                      to="/signup"
+                      className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </nav>
+            </div>
+          )}
+        </div>
+      </header>
 
       <main className="flex-1">
         <Routes>
