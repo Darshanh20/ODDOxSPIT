@@ -16,7 +16,18 @@ const protect = async (req, res, next) => {
       // Exclude the password from the user object
       req.user = await prisma.user.findUnique({
         where: { id: decoded.id },
-        select: { id: true, email: true, name: true, username: true, firstName: true, lastName: true, phone: true, profileImage: true, createdAt: true },
+        select: { 
+          id: true, 
+          email: true, 
+          name: true, 
+          username: true, 
+          firstName: true, 
+          lastName: true, 
+          phone: true, 
+          profileImage: true, 
+          role: true,
+          createdAt: true 
+        },
       });
 
       next(); // Move on to the next function
@@ -31,4 +42,30 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+// Middleware to check if user is admin
+const adminOnly = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authorized, no user' });
+  }
+
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Access denied. Admin only.' });
+  }
+
+  next();
+};
+
+// Middleware to check if user is admin or manager
+const adminOrManager = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authorized, no user' });
+  }
+
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER') {
+    return res.status(403).json({ message: 'Access denied. Admin or Manager only.' });
+  }
+
+  next();
+};
+
+module.exports = { protect, adminOnly, adminOrManager };

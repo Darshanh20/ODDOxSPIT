@@ -144,9 +144,9 @@ export default function Login() {
 
             {/* Submit Error */}
             {errors.submit && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <span className="text-sm text-red-700">{errors.submit}</span>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+                <span className="text-sm text-red-700 dark:text-red-300">{errors.submit}</span>
               </div>
             )}
 

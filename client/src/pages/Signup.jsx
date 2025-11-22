@@ -237,7 +237,7 @@ export default function Signup() {
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasUpper ? (
-                      <Check className="w-4 h-4 text-green-500" />
+                      <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                     ) : (
                       <X className="w-4 h-4 text-gray-300 dark:text-gray-600" />
                     )}
@@ -247,7 +247,7 @@ export default function Signup() {
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasLower ? (
-                      <Check className="w-4 h-4 text-green-500" />
+                      <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                     ) : (
                       <X className="w-4 h-4 text-gray-300 dark:text-gray-600" />
                     )}
@@ -257,7 +257,7 @@ export default function Signup() {
                   </div>
                   <div className="flex items-center gap-2">
                     {passwordStrength.hasSpecial ? (
-                      <Check className="w-4 h-4 text-green-500" />
+                      <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                     ) : (
                       <X className="w-4 h-4 text-gray-300 dark:text-gray-600" />
                     )}
@@ -301,9 +301,9 @@ export default function Signup() {
 
             {/* Submit Error */}
             {errors.submit && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <span className="text-sm text-red-700">{errors.submit}</span>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+                <span className="text-sm text-red-700 dark:text-red-300">{errors.submit}</span>
               </div>
             )}
 

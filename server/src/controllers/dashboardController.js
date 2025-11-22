@@ -157,14 +157,10 @@ const getStockOverview = async (req, res) => {
     const where = {};
     if (warehouseId) where.warehouseId = warehouseId;
 
-    const productWhere = {};
-    if (categoryId) productWhere.categoryId = categoryId;
-
     const stockData = await prisma.stock.findMany({
       where,
       include: {
         product: {
-          where: productWhere,
           include: {
             category: true
           }
@@ -174,8 +170,16 @@ const getStockOverview = async (req, res) => {
       }
     });
 
+    // Filter by category if provided
+    let filteredStockData = stockData;
+    if (categoryId) {
+      filteredStockData = stockData.filter(stock => stock.product?.categoryId === categoryId);
+    }
+
     // Group by product
-    const stockByProduct = stockData.reduce((acc, stock) => {
+    const stockByProduct = filteredStockData.reduce((acc, stock) => {
+      if (!stock.product) return acc; // Skip if product is null
+      
       const productId = stock.productId;
       if (!acc[productId]) {
         acc[productId] = {
