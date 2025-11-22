@@ -24,8 +24,10 @@
 
 import React, { useState } from 'react'
 import { Package, AlertTriangle, FileText, TrendingUp, Clock } from 'lucide-react'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function DashboardSnapshot() {
+  const { theme } = useTheme()
   // Mock data for demonstration
   const kpis = [
     { label: 'Total Products', value: '1,234', icon: Package, color: 'blue' },
@@ -60,34 +62,54 @@ export default function DashboardSnapshot() {
 
   // Status badge color helper
   const getStatusColor = (status) => {
-    const colors = {
-      Done: 'bg-green-100 text-green-800',
-      Ready: 'bg-blue-100 text-blue-800',
-      Waiting: 'bg-yellow-100 text-yellow-800',
-      Draft: 'bg-gray-100 text-gray-800',
-      Canceled: 'bg-red-100 text-red-800'
+    if (theme === 'dark') {
+      const colors = {
+        Done: 'bg-green-900 text-green-200',
+        Ready: 'bg-blue-900 text-blue-200',
+        Waiting: 'bg-yellow-900 text-yellow-200',
+        Draft: 'bg-gray-700 text-gray-200',
+        Canceled: 'bg-red-900 text-red-200'
+      }
+      return colors[status] || 'bg-gray-700 text-gray-200'
+    } else {
+      const colors = {
+        Done: 'bg-green-100 text-green-800',
+        Ready: 'bg-blue-100 text-blue-800',
+        Waiting: 'bg-yellow-100 text-yellow-800',
+        Draft: 'bg-gray-100 text-gray-800',
+        Canceled: 'bg-red-100 text-red-800'
+      }
+      return colors[status] || 'bg-gray-100 text-gray-800'
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
   }
 
   const getAlertColor = (type) => {
-    const colors = {
-      warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-      info: 'bg-blue-50 border-blue-200 text-blue-800',
-      success: 'bg-green-50 border-green-200 text-green-800'
+    if (theme === 'dark') {
+      const colors = {
+        warning: 'bg-yellow-900/30 border-yellow-700 text-yellow-200',
+        info: 'bg-blue-900/30 border-blue-700 text-blue-200',
+        success: 'bg-green-900/30 border-green-700 text-green-200'
+      }
+      return colors[type] || 'bg-gray-800 border-gray-700 text-gray-200'
+    } else {
+      const colors = {
+        warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+        info: 'bg-blue-50 border-blue-200 text-blue-800',
+        success: 'bg-green-50 border-green-200 text-green-800'
+      }
+      return colors[type] || 'bg-gray-50 border-gray-200 text-gray-800'
     }
-    return colors[type] || 'bg-gray-50 border-gray-200 text-gray-800'
   }
 
   return (
-    <section id="dashboard-snapshot" className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+    <section id="dashboard-snapshot" className="bg-gray-50 dark:bg-gray-900 py-16 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Dashboard Snapshot
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Get a glimpse of your inventory operations at a glance. Real-time insights, quick actions, and intelligent alerts.
           </p>
         </div>
@@ -96,61 +118,68 @@ export default function DashboardSnapshot() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon
+            const colorClasses = {
+              blue: 'text-blue-600 dark:text-blue-400',
+              red: 'text-red-600 dark:text-red-400',
+              yellow: 'text-yellow-600 dark:text-yellow-400',
+              green: 'text-green-600 dark:text-green-400',
+              purple: 'text-purple-600 dark:text-purple-400'
+            }
             return (
               <div 
                 key={index}
-                className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-300"
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <Icon className={`w-6 h-6 text-${kpi.color}-600`} />
+                  <Icon className={`w-6 h-6 ${colorClasses[kpi.color] || 'text-gray-600 dark:text-gray-400'}`} />
                 </div>
-                <div className="text-2xl font-bold text-gray-900">{kpi.value}</div>
-                <div className="text-sm text-gray-600">{kpi.label}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{kpi.value}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">{kpi.label}</div>
               </div>
             )
           })}
         </div>
 
         {/* Dynamic Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Document Type Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Document Type
               </label>
-              <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200">
                 All Types
               </div>
             </div>
 
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Status
               </label>
-              <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200">
                 All Status
               </div>
             </div>
 
             {/* Warehouse Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Warehouse
               </label>
-              <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200">
                 All Warehouses
               </div>
             </div>
 
             {/* Category Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Product Category
               </label>
-              <div className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200">
                 All Categories
               </div>
             </div>
@@ -160,35 +189,35 @@ export default function DashboardSnapshot() {
         {/* Content Grid: Documents Table + Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Recent Documents Table */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Documents</h3>
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Documents</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warehouse</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reference</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Warehouse</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Items</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {recentDocs.map((doc, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doc.type}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doc.ref}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doc.warehouse}</td>
+                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{doc.type}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{doc.ref}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{doc.warehouse}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(doc.status)}`}>
                           {doc.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doc.items}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{doc.date}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{doc.items}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{doc.date}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -199,18 +228,18 @@ export default function DashboardSnapshot() {
           {/* Charts Column */}
           <div className="space-y-8">
             {/* Stock by Category Chart */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock by Category</h3>
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Stock by Category</h3>
               <div className="space-y-3">
                 {stockByCategory.map((item, index) => (
                   <div key={index}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-700">{item.category}</span>
-                      <span className="text-gray-900 font-medium">{item.count}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{item.category}</span>
+                      <span className="text-gray-900 dark:text-white font-medium">{item.count}</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                        className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${item.percentage}%` }}
                       />
                     </div>
@@ -220,8 +249,8 @@ export default function DashboardSnapshot() {
             </div>
 
             {/* Alerts Box */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Alerts</h3>
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Alerts</h3>
               <div className="space-y-3" aria-live="polite">
                 {alerts.map((alert, index) => (
                   <div 
