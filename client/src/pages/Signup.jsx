@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Check, X, AlertCircle, Copy } from 'lucide-react'
+import { Check, X, AlertCircle } from 'lucide-react'
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -11,11 +11,9 @@ export default function Signup() {
   })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState({
     hasUpper: false,
     hasLower: false,
-    hasNumber: false,
     hasSpecial: false,
     isLengthValid: false,
   })
@@ -35,21 +33,13 @@ export default function Signup() {
     generateLoginId()
   }, [])
 
-  // Copy to clipboard
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(formData.username)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  // Validate password requirements
+  // Validate password requirements - must contain lowercase, uppercase, special char, length > 8
   const validatePassword = (pwd) => {
     const strength = {
       hasUpper: /[A-Z]/.test(pwd),
       hasLower: /[a-z]/.test(pwd),
-      hasNumber: /[0-9]/.test(pwd),
       hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
-      isLengthValid: pwd.length >= 8,
+      isLengthValid: pwd.length > 8,
     }
     setPasswordStrength(strength)
     return Object.values(strength).every(v => v)
@@ -86,23 +76,30 @@ export default function Signup() {
     e.preventDefault()
     const newErrors = {}
 
-    // Validate email
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required'
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email'
+    // Validate Login Id - must be unique and 6-12 characters
+    if (!formData.username.trim()) {
+      newErrors.username = 'Login Id is required'
+    } else if (formData.username.trim().length < 6 || formData.username.trim().length > 12) {
+      newErrors.username = 'Login Id must be between 6-12 characters'
     }
 
-    // Validate password
+    // Validate Email - must not be duplicate in database
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email Id is required'
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address'
+    }
+
+    // Validate Password - must contain lowercase, uppercase, special char, length > 8
     if (!formData.password) {
       newErrors.password = 'Password is required'
     } else if (!validatePassword(formData.password)) {
-      newErrors.password = 'Password must contain uppercase, lowercase, number, special character and be 8+ characters'
+      newErrors.password = 'Password must contain lowercase, uppercase, special character and length should be more than 8 characters'
     }
 
-    // Validate confirm password
+    // Validate Confirm Password
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password'
+      newErrors.confirmPassword = 'Please re-enter your password'
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match'
     }
@@ -118,8 +115,8 @@ export default function Signup() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
+          username: formData.username.trim(),
+          email: formData.email.trim(),
           password: formData.password,
         }),
       })
@@ -133,13 +130,7 @@ export default function Signup() {
 
       if (data.token) {
         localStorage.setItem('token', data.token)
-        
-        // Redirect based on user role
-        if (data.role === 'ADMIN' || data.role === 'MANAGER') {
-          window.location.href = '/admin/dashboard'
-        } else {
-          window.location.href = '/home'
-        }
+        navigate('/home')
       }
     } catch (err) {
       console.error(err)
@@ -160,57 +151,50 @@ export default function Signup() {
             </div>
             <span className="text-2xl font-bold text-gray-900 dark:text-white">StockMaster</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h2>
-          <p className="text-gray-600 dark:text-gray-300">Join StockMaster to streamline your inventory</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Login ID / Username Field */}
+            {/* Enter Login Id Field */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Login ID <span className="text-green-600 dark:text-green-400 text-xs font-normal">(Auto-generated)</span>
+                Enter Login Id <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  readOnly
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-white font-semibold focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={copyToClipboard}
-                  className={`px-4 py-3 rounded-lg border transition-all flex items-center gap-2 ${
-                    copied
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-600 text-green-700 dark:text-green-400'
-                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}
-                  title="Copy Login ID"
-                >
-                  <Copy className="w-4 h-4" />
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: SMYYYY#### • Unique identifier for your account</p>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleInputChange}
+                placeholder="Enter Login Id (6-12 characters)"
+                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
+                  errors.username
+                    ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent'
+                }`}
+              />
+              {errors.username && (
+                <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" /> {errors.username}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-generated format: SMYYYY####</p>
             </div>
 
-            {/* Email Field */}
+            {/* Enter Email Id Field */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Email <span className="text-red-500">*</span>
+                Enter Email Id <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="your@email.com"
-                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 ${
+                placeholder="Enter Email Id"
+                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
                   errors.email
-                    ? 'border-red-500 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-800'
-                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:border-transparent'
+                    ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent'
                 }`}
               />
               {errors.email && (
@@ -220,21 +204,21 @@ export default function Signup() {
               )}
             </div>
 
-            {/* Password Field */}
+            {/* Enter Password Field */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Password <span className="text-red-500">*</span>
+                Enter Password <span className="text-red-500">*</span>
               </label>
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                placeholder="Enter your password"
-                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 ${
+                placeholder="Enter Password"
+                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
                   errors.password
-                    ? 'border-red-500 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-800'
-                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:border-transparent'
+                    ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent'
                 }`}
               />
               
@@ -248,7 +232,7 @@ export default function Signup() {
                       <X className="w-4 h-4 text-gray-300" />
                     )}
                     <span className={`text-xs ${passwordStrength.isLengthValid ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                      At least 8 characters
+                      Length more than 8 characters
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -272,16 +256,6 @@ export default function Signup() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {passwordStrength.hasNumber ? (
-                      <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
-                    ) : (
-                      <X className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-                    )}
-                    <span className={`text-xs ${passwordStrength.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                      Number (0-9)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     {passwordStrength.hasSpecial ? (
                       <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                     ) : (
@@ -301,21 +275,21 @@ export default function Signup() {
               )}
             </div>
 
-            {/* Confirm Password Field */}
+            {/* Re-Enter Password Field */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Confirm Password <span className="text-red-500">*</span>
+                Re-Enter Password <span className="text-red-500">*</span>
               </label>
               <input
                 type="password"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                placeholder="Re-enter your password"
-                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 ${
+                placeholder="Re-Enter Password"
+                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
                   errors.confirmPassword
-                    ? 'border-red-500 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-800'
-                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:border-transparent'
+                    ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent'
                 }`}
               />
               {errors.confirmPassword && (
@@ -337,14 +311,14 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Creating account...' : 'Sign Up'}
             </button>
           </form>
 
           {/* Sign In Link */}
-          <p className="text-center text-gray-600 dark:text-gray-300 mt-6">
+          <p className="text-center text-gray-600 dark:text-gray-400 mt-6">
             Already have an account?{' '}
             <Link to="/login" className="text-gray-900 dark:text-white font-semibold hover:underline">
               Sign In

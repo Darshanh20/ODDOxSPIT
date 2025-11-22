@@ -12,11 +12,11 @@ const { protect, adminOnly } = require('../middlewares/authMiddleware');
 // All routes require authentication
 router.use(protect);
 
-// Admin-only dashboard routes
-router.get('/kpis', adminOnly, getDashboardKPIs);
-router.get('/stock-overview', adminOnly, getStockOverview);
-router.get('/document-stats', adminOnly, getDocumentStatistics);
-router.get('/top-products', adminOnly, getTopProducts);
-router.get('/alerts', adminOnly, getAlerts);
+// Dashboard routes - accessible to all authenticated users
+router.get('/kpis', getDashboardKPIs);
+router.get('/stock-overview', getStockOverview);
+router.get('/document-stats', getDocumentStatistics);
+router.get('/top-products', getTopProducts);
+router.get('/alerts', getAlerts);
 
 module.exports = router;
