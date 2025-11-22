@@ -2,7 +2,8 @@
 
 datasource db {
   provider = "postgresql"
-
+  url = env("DATABASE_URL")
+  // Lock Prisma version to 4.16.2 by removing ^ in package.json: "prisma": "4.16.2"
 }
 
 generator client {
