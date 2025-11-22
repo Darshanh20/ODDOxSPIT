@@ -87,9 +87,52 @@ export default function DeliveryDetail() {
             { headers: { 'Authorization': `Bearer ${token}` } }
           )
           if (response.ok) {
-            const stock = await response.json()
-            // stock might be an array or single object
-            const stockData = Array.isArray(stock) ? stock.find(s => s.warehouseId === warehouseId) || stock[0] : stock
+            const responseData = await response.json()
+            
+            // API returns { stockByWarehouse: [...], rawStock: [...] }
+            let stockData = null
+            
+            if (responseData.stockByWarehouse && Array.isArray(responseData.stockByWarehouse)) {
+              // Find the warehouse in stockByWarehouse array
+              const warehouseStock = responseData.stockByWarehouse.find(
+                sw => sw.warehouse && sw.warehouse.id === warehouseId
+              )
+              if (warehouseStock) {
+                stockData = {
+                  available: warehouseStock.totalAvailable || 0,
+                  reserved: warehouseStock.totalReserved || 0,
+                  quantity: warehouseStock.totalQuantity || 0
+                }
+              }
+            }
+            
+            // If not found in stockByWarehouse, try rawStock
+            if (!stockData && responseData.rawStock && Array.isArray(responseData.rawStock)) {
+              // Aggregate rawStock by warehouse
+              const warehouseStockRecords = responseData.rawStock.filter(
+                s => s.warehouseId === warehouseId
+              )
+              if (warehouseStockRecords.length > 0) {
+                const totalAvailable = warehouseStockRecords.reduce((sum, s) => sum + (s.available || 0), 0)
+                const totalReserved = warehouseStockRecords.reduce((sum, s) => sum + (s.reserved || 0), 0)
+                const totalQuantity = warehouseStockRecords.reduce((sum, s) => sum + (s.quantity || 0), 0)
+                stockData = {
+                  available: totalAvailable,
+                  reserved: totalReserved,
+                  quantity: totalQuantity
+                }
+              }
+            }
+            
+            // Fallback to direct array or object
+            if (!stockData) {
+              if (Array.isArray(responseData)) {
+                stockData = responseData.find(s => s.warehouseId === warehouseId)
+              } else if (responseData.available !== undefined) {
+                stockData = responseData
+              }
+            }
+            
             return { productId, stock: stockData }
           }
         } catch (err) {
@@ -232,11 +275,25 @@ export default function DeliveryDetail() {
     
     // Fetch stock when warehouse changes
     if (name === 'warehouseId' && value) {
-      await fetchStock(value)
-      // Also fetch stock for all existing products
+      // Fetch stock for all existing products
       const productIds = items.map(item => item.productId).filter(Boolean)
-      for (const productId of productIds) {
-        await fetchProductStock(productId, value)
+      if (productIds.length > 0) {
+        const stockPromises = productIds.map(productId => fetchProductStock(productId, value))
+        await Promise.all(stockPromises)
+        
+        // Update items with stock availability after fetching
+        setTimeout(() => {
+          setItems(prevItems => prevItems.map(item => {
+            if (!item.productId) return item
+            const stock = stockData[item.productId]
+            const available = stock ? (stock.available || stock.totalAvailable || 0) : 0
+            return {
+              ...item,
+              stockAvailable: available,
+              isInStock: available >= item.quantity
+            }
+          }))
+        }, 200)
       }
     }
   }
@@ -269,12 +326,20 @@ export default function DeliveryDetail() {
     // Fetch stock for this specific product if warehouse is selected
     if (productId && formData.warehouseId) {
       await fetchProductStock(productId, formData.warehouseId)
+      // Stock will be updated in fetchProductStock via setStockData callback
     } else if (productId && !formData.warehouseId) {
       // If no warehouse selected, set stock to 0
       setStockData(prev => ({
         ...prev,
         [productId]: { available: 0, reserved: 0, quantity: 0 }
       }))
+      const updatedItems = [...newItems]
+      updatedItems[index] = {
+        ...updatedItems[index],
+        stockAvailable: 0,
+        isInStock: false
+      }
+      setItems(updatedItems)
     }
   }
 
@@ -289,30 +354,105 @@ export default function DeliveryDetail() {
       )
       
       if (response.ok) {
-        const stock = await response.json()
-        // stock might be an array or single object
-        const stockDataItem = Array.isArray(stock) 
-          ? stock.find(s => s.warehouseId === warehouseId) || stock[0] 
-          : stock
+        const responseData = await response.json()
+        
+        // API returns { stockByWarehouse: [...], rawStock: [...] }
+        let stockDataItem = null
+        
+        if (responseData.stockByWarehouse && Array.isArray(responseData.stockByWarehouse)) {
+          // Find the warehouse in stockByWarehouse array
+          const warehouseStock = responseData.stockByWarehouse.find(
+            sw => sw.warehouse && sw.warehouse.id === warehouseId
+          )
+          if (warehouseStock) {
+            stockDataItem = {
+              available: warehouseStock.totalAvailable || 0,
+              reserved: warehouseStock.totalReserved || 0,
+              quantity: warehouseStock.totalQuantity || 0
+            }
+          }
+        }
+        
+        // If not found in stockByWarehouse, try rawStock
+        if (!stockDataItem && responseData.rawStock && Array.isArray(responseData.rawStock)) {
+          // Aggregate rawStock by warehouse
+          const warehouseStockRecords = responseData.rawStock.filter(
+            s => s.warehouseId === warehouseId
+          )
+          if (warehouseStockRecords.length > 0) {
+            const totalAvailable = warehouseStockRecords.reduce((sum, s) => sum + (s.available || 0), 0)
+            const totalReserved = warehouseStockRecords.reduce((sum, s) => sum + (s.reserved || 0), 0)
+            const totalQuantity = warehouseStockRecords.reduce((sum, s) => sum + (s.quantity || 0), 0)
+            stockDataItem = {
+              available: totalAvailable,
+              reserved: totalReserved,
+              quantity: totalQuantity
+            }
+          }
+        }
+        
+        // Fallback to direct array or object
+        if (!stockDataItem) {
+          if (Array.isArray(responseData)) {
+            const warehouseStock = responseData.find(s => s.warehouseId === warehouseId)
+            if (warehouseStock) {
+              stockDataItem = {
+                available: warehouseStock.available || 0,
+                reserved: warehouseStock.reserved || 0,
+                quantity: warehouseStock.quantity || 0
+              }
+            }
+          } else if (responseData.available !== undefined) {
+            stockDataItem = {
+              available: responseData.available || 0,
+              reserved: responseData.reserved || 0,
+              quantity: responseData.quantity || 0
+            }
+          }
+        }
         
         if (stockDataItem) {
-          setStockData(prev => ({
-            ...prev,
-            [productId]: {
-              available: stockDataItem.available || 0,
-              reserved: stockDataItem.reserved || 0,
-              quantity: stockDataItem.quantity || 0
+          setStockData(prev => {
+            const updated = {
+              ...prev,
+              [productId]: stockDataItem
             }
-          }))
+            // Update items with stock availability immediately
+            setItems(prevItems => prevItems.map(item => {
+              if (item.productId === productId) {
+                const available = stockDataItem.available || stockDataItem.totalAvailable || 0
+                return {
+                  ...item,
+                  stockAvailable: available,
+                  isInStock: available >= item.quantity
+                }
+              }
+              return item
+            }))
+            return updated
+          })
         } else {
           // No stock record found, set to 0
           setStockData(prev => ({
             ...prev,
             [productId]: { available: 0, reserved: 0, quantity: 0 }
           }))
+          // Update items to show 0 stock
+          setItems(prevItems => prevItems.map(item => {
+            if (item.productId === productId) {
+              return {
+                ...item,
+                stockAvailable: 0,
+                isInStock: false
+              }
+            }
+            return item
+          }))
         }
       } else {
         // API error, set stock to 0
+        const errorText = await response.text()
+        console.error(`Error fetching stock for product ${productId}:`, errorText)
         setStockData(prev => ({
           ...prev,
           [productId]: { available: 0, reserved: 0, quantity: 0 }
@@ -340,7 +480,7 @@ export default function DeliveryDetail() {
       }
       
       const stock = stockData[item.productId]
-      const available = stock ? stock.available : 0
+      const available = stock ? (stock.available || stock.totalAvailable || 0) : 0
       const isInStock = available >= item.quantity
       
       return {
@@ -455,7 +595,7 @@ export default function DeliveryDetail() {
       return
     }
     
-    // If status is READY, mark as DONE
+    // If status is READY, validate (mark as DONE and update stock)
     if (formData.status === 'READY') {
       try {
         setSaving(true)
@@ -472,33 +612,30 @@ export default function DeliveryDetail() {
               itemId: item.id,
               quantityDelivered: item.quantity
             })),
-            checkStock: false
+            checkStock: false // Don't check stock, just mark as DONE
           })
         })
 
         if (!response.ok) {
           const data = await response.json()
-          throw new Error(data.message || 'Failed to complete delivery')
+          throw new Error(data.message || 'Failed to validate delivery')
         }
 
         const updated = await response.json()
         setFormData(prev => ({ ...prev, status: updated.status }))
-        setSuccess('Delivery completed! Stock has been decreased.')
+        setSuccess('Delivery validated! Stock has been updated.')
         await fetchDelivery()
         setTimeout(() => setSuccess(''), 5000)
       } catch (err) {
-        console.error('Error completing delivery:', err)
-        setError(err.message || 'Failed to complete delivery')
+        console.error('Error validating delivery:', err)
+        setError(err.message || 'Failed to validate delivery')
       } finally {
         setSaving(false)
       }
       return
     }
     
-    // If status is DRAFT, check stock and set to WAITING or READY
-    // Check stock availability
-    const allInStock = checkStockAvailability()
-    
+    // If status is DRAFT or WAITING, check stock and set to WAITING or READY
     try {
       setSaving(true)
       const token = localStorage.getItem('token')
@@ -514,7 +651,7 @@ export default function DeliveryDetail() {
             itemId: item.id,
             quantityDelivered: item.quantity
           })),
-          checkStock: true
+          checkStock: true // Check stock and set status
         })
       })
 
@@ -534,7 +671,7 @@ export default function DeliveryDetail() {
           setError(`Products out of stock: ${productNames}`)
         }
       } else if (updated.status === 'READY') {
-        setSuccess('Delivery validated! Status updated to READY. Stock has been reserved.')
+        setSuccess('Delivery validated! Status updated to READY. Stock has been reserved. Click Validate to complete delivery.')
       }
       
       await fetchDelivery()
@@ -702,7 +839,7 @@ export default function DeliveryDetail() {
                   className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
-                  Mark Delivery as Done
+                  Validate
                 </button>
               )}
               <button
@@ -889,7 +1026,7 @@ export default function DeliveryDetail() {
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {items.map((item, index) => {
                     const stock = stockData[item.productId] || { available: 0, quantity: 0 }
-                    const stockAvailable = stock.available || 0
+                    const stockAvailable = stock ? (stock.available || stock.totalAvailable || 0) : 0
                     const isOutOfStock = stockAvailable === 0
                     const isInsufficient = stockAvailable < item.quantity && stockAvailable > 0
                     const isSufficient = stockAvailable >= item.quantity && stockAvailable > 0
