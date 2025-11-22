@@ -1,15 +1,24 @@
 const prisma = require('../utils/prismaClient');
 
 // Helper function to generate receipt number
-const generateReceiptNumber = async () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+const generateReceiptNumber = async (warehouseCode) => {
+  // Extract warehouse prefix (e.g., "WH" from "WH/PA/564")
+  let warehousePrefix = 'WH';
+  if (warehouseCode) {
+    if (warehouseCode.includes('/')) {
+      warehousePrefix = warehouseCode.split('/')[0];
+    } else if (warehouseCode.includes('-')) {
+      warehousePrefix = warehouseCode.split('-')[0];
+    } else {
+      warehousePrefix = warehouseCode.length >= 2 ? warehouseCode.substring(0, 2) : warehouseCode;
+    }
+  }
   
+  // Find the last receipt with the same warehouse prefix
   const lastReceipt = await prisma.receipt.findFirst({
     where: {
       receiptNumber: {
-        startsWith: `REC-${year}${month}`
+        startsWith: `${warehousePrefix}/IN/`
       }
     },
     orderBy: {
@@ -19,11 +28,17 @@ const generateReceiptNumber = async () => {
 
   let sequence = 1;
   if (lastReceipt) {
-    const lastSequence = parseInt(lastReceipt.receiptNumber.split('-')[2]);
-    sequence = lastSequence + 1;
+    const parts = lastReceipt.receiptNumber.split('/');
+    if (parts.length === 3 && parts[1] === 'IN') {
+      const lastSequence = parseInt(parts[2]);
+      if (!isNaN(lastSequence)) {
+        sequence = lastSequence + 1;
+      }
+    }
   }
 
-  return `REC-${year}${month}-${String(sequence).padStart(4, '0')}`;
+  // Format: {WAREHOUSE_CODE}/IN/{SEQUENCE_NUMBER}
+  return `${warehousePrefix}/IN/${String(sequence).padStart(4, '0')}`;
 };
 
 // Get all receipts with filters
@@ -121,11 +136,20 @@ const createReceipt = async (req, res) => {
     const { supplierId, warehouseId, scheduledDate, notes, items } = req.body;
     const userId = req.user.id;
 
-    if (!warehouseId || !items || items.length === 0) {
-      return res.status(400).json({ message: 'Warehouse and items are required' });
+    if (!warehouseId) {
+      return res.status(400).json({ message: 'Warehouse is required' });
     }
 
-    const receiptNumber = await generateReceiptNumber();
+    // Fetch warehouse to get code
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: warehouseId }
+    });
+
+    if (!warehouse) {
+      return res.status(404).json({ message: 'Warehouse not found' });
+    }
+
+    const receiptNumber = await generateReceiptNumber(warehouse.code);
 
     const receipt = await prisma.receipt.create({
       data: {
@@ -136,7 +160,7 @@ const createReceipt = async (req, res) => {
         notes,
         status: 'DRAFT',
         createdById: userId,
-        items: {
+        items: (items && Array.isArray(items) && items.length > 0) ? {
           create: items.map(item => ({
             productId: item.productId,
             quantityOrdered: item.quantityOrdered,
@@ -144,7 +168,7 @@ const createReceipt = async (req, res) => {
             unitPrice: item.unitPrice || 0,
             notes: item.notes
           }))
-        }
+        } : undefined
       },
       include: {
         supplier: true,
