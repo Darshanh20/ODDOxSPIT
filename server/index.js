@@ -21,6 +21,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoute = require('./src/routes/authRoutes');
 app.use('/api/auth', authRoute);
 
+// Google OAuth Routes
+const googleAuthRoutes = require('./src/routes/googleAuthRoutes');
+app.use('/api/auth', googleAuthRoutes);
+
 const userRoutes = require('./src/routes/userRoutes');
 app.use('/api/users', userRoutes);
 

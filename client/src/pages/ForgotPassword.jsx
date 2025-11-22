@@ -291,6 +291,21 @@ export default function ForgotPassword() {
               Sign In
             </Link>
           </p>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 mt-8 mb-6">
+            <div className="flex-1 h-px bg-gray-200"></div>
+            <span className="text-sm text-gray-500">Or</span>
+            <div className="flex-1 h-px bg-gray-200"></div>
+          </div>
+
+          {/* Google OAuth Alternative */}
+          <Link
+            to="/forgot-password-new"
+            className="block w-full text-center px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all duration-300"
+          >
+            🔐 Reset via Google Authentication
+          </Link>
         </div>
       </div>
     </div>

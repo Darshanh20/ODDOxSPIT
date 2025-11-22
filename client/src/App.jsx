@@ -5,6 +5,9 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import GoogleVerifyPage from './pages/GoogleVerifyPage'
+import GoogleResetPasswordPage from './pages/GoogleResetPasswordPage'
 import ResetPassword from './pages/ResetPassword'
 import Profile from './pages/Profile'
 import Home from './pages/Home'
@@ -109,6 +112,9 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/forgot-password-new" element={<ForgotPasswordPage />} />
+          <Route path="/forgot-password/google-verify" element={<GoogleVerifyPage />} />
+          <Route path="/forgot-password/reset" element={<GoogleResetPasswordPage />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
             path="/home" 
