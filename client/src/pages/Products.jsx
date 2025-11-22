@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Filter, X, Edit, Eye, CheckCircle } from 'lucide-react'
+import { Plus, Search, X, Edit, Eye, CheckCircle } from 'lucide-react'
 
 export default function Products() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState([])
   const [warehouses, setWarehouses] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('')
   const [showNewForm, setShowNewForm] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showMovementModal, setShowMovementModal] = useState(false)
@@ -18,35 +16,41 @@ export default function Products() {
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
-    categoryId: '',
     unitOfMeasure: 'Units',
     initialStock: 0,
     initialWarehouseId: '',
     unitPrice: 0,
+    minStock: 0,
+    maxStock: '',
+    reorderPoint: 0,
+    reorderQuantity: 0,
   })
   const [formErrors, setFormErrors] = useState({})
+  const [loadingSKU, setLoadingSKU] = useState(false)
 
   useEffect(() => {
-    fetchCategories()
     fetchWarehouses()
   }, [])
 
   useEffect(() => {
     fetchProducts()
-  }, [searchTerm, categoryFilter])
+  }, [searchTerm])
 
-  const fetchCategories = async () => {
+  const fetchNextSKU = async () => {
+    setLoadingSKU(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/categories?isActive=true', {
+      const response = await fetch('http://localhost:5000/api/products/next-sku', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
-        setCategories(data)
+        setFormData(prev => ({ ...prev, sku: data.sku }))
       }
     } catch (error) {
-      console.error('Error fetching categories:', error)
+      console.error('Error fetching next SKU:', error)
+    } finally {
+      setLoadingSKU(false)
     }
   }
 
@@ -74,7 +78,6 @@ export default function Products() {
       const token = localStorage.getItem('token')
       const queryParams = new URLSearchParams()
       if (searchTerm) queryParams.append('search', searchTerm)
-      if (categoryFilter) queryParams.append('category', categoryFilter)
       queryParams.append('isActive', 'true')
 
       const response = await fetch(`http://localhost:5000/api/products?${queryParams}`, {
@@ -137,9 +140,9 @@ export default function Products() {
     const errors = {}
 
     if (!formData.name.trim()) errors.name = 'Product name is required'
-    if (!formData.sku.trim()) errors.sku = 'SKU is required'
-    if (!formData.categoryId) errors.categoryId = 'Category is required'
-    if (!formData.initialWarehouseId) errors.initialWarehouseId = 'Warehouse is required'
+    if (formData.initialStock > 0 && !formData.initialWarehouseId) {
+      errors.initialWarehouseId = 'Warehouse is required when setting initial stock'
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
@@ -156,11 +159,16 @@ export default function Products() {
         },
         body: JSON.stringify({
           name: formData.name,
-          sku: formData.sku,
-          categoryId: formData.categoryId,
+          sku: formData.sku, // Send the pre-generated SKU
           unitOfMeasure: formData.unitOfMeasure,
           unitPrice: formData.unitPrice || 0,
-          // Note: Initial stock would need to be handled separately via a receipt or adjustment
+          minStock: formData.minStock || 0,
+          maxStock: formData.maxStock ? parseFloat(formData.maxStock) : null,
+          reorderPoint: formData.reorderPoint || 0,
+          reorderQuantity: formData.reorderQuantity || 0,
+          initialStock: formData.initialStock || 0,
+          initialWarehouseId: formData.initialStock > 0 ? (formData.initialWarehouseId || null) : null,
+          initialLocationId: null, // Can be added later if needed
         })
       })
 
@@ -169,7 +177,6 @@ export default function Products() {
         setFormData({
           name: '',
           sku: '',
-          categoryId: '',
           unitOfMeasure: 'Units',
           initialStock: 0,
           initialWarehouseId: warehouses.length > 0 ? warehouses[0].id : '',
@@ -255,7 +262,10 @@ export default function Products() {
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your product inventory</p>
         </div>
         <button
-          onClick={() => setShowNewForm(true)}
+          onClick={() => {
+            setShowNewForm(true)
+            fetchNextSKU()
+          }}
           className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-semibold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
@@ -278,22 +288,6 @@ export default function Products() {
               />
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 min-w-[200px]"
-            >
-              <option value="">All Categories</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
@@ -312,9 +306,6 @@ export default function Products() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Product
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Per Unit Cost
@@ -350,11 +341,6 @@ export default function Products() {
                             SKU: {product.sku}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {product.category?.name || 'Uncategorized'}
-                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -437,11 +423,14 @@ export default function Products() {
                   setFormData({
                     name: '',
                     sku: '',
-                    categoryId: '',
                     unitOfMeasure: 'Units',
                     initialStock: 0,
                     initialWarehouseId: warehouses.length > 0 ? warehouses[0].id : '',
                     unitPrice: 0,
+                    minStock: 0,
+                    maxStock: '',
+                    reorderPoint: 0,
+                    reorderQuantity: 0,
                   })
                   setFormErrors({})
                 }}
@@ -475,64 +464,37 @@ export default function Products() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  SKU <span className="text-red-500">*</span>
+                  SKU <span className="text-gray-500 dark:text-gray-400 text-xs">(Auto-generated)</span>
+                </label>
+                {loadingSKU ? (
+                  <div className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                    <span className="text-sm">Generating SKU...</span>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.sku}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white cursor-not-allowed font-mono"
+                    placeholder="Loading SKU..."
+                  />
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  SKU is automatically generated and cannot be changed
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Unit of Measure (UOM)
                 </label>
                 <input
                   type="text"
-                  value={formData.sku}
-                  onChange={(e) => {
-                    setFormData(prev => ({ ...prev, sku: e.target.value }))
-                    if (formErrors.sku) setFormErrors(prev => ({ ...prev, sku: '' }))
-                  }}
-                  className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                    formErrors.sku ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  } focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500`}
-                  placeholder="Enter SKU"
+                  value={formData.unitOfMeasure}
+                  onChange={(e) => setFormData(prev => ({ ...prev, unitOfMeasure: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+                  placeholder="e.g., Units, Kg, L"
                 />
-                {formErrors.sku && (
-                  <p className="text-sm text-red-500 mt-1">{formErrors.sku}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.categoryId}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, categoryId: e.target.value }))
-                      if (formErrors.categoryId) setFormErrors(prev => ({ ...prev, categoryId: '' }))
-                    }}
-                    className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                      formErrors.categoryId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500`}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                  {formErrors.categoryId && (
-                    <p className="text-sm text-red-500 mt-1">{formErrors.categoryId}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Unit of Measure (UOM)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.unitOfMeasure}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unitOfMeasure: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
-                    placeholder="e.g., Units, Kg, L"
-                  />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -612,12 +574,16 @@ export default function Products() {
                     setFormData({
                       name: '',
                       sku: '',
-                      categoryId: '',
                       unitOfMeasure: 'Units',
                       initialStock: 0,
                       initialWarehouseId: warehouses.length > 0 ? warehouses[0].id : '',
                       unitPrice: 0,
+                      minStock: 0,
+                      maxStock: '',
+                      reorderPoint: 0,
+                      reorderQuantity: 0,
                     })
+                    fetchNextSKU() // Generate new SKU for next product
                     setFormErrors({})
                   }}
                   className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
@@ -732,13 +698,7 @@ function ProductDetailModal({ product, onClose }) {
                 <p className="text-base font-medium text-gray-900 dark:text-white">{product.sku}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Category</p>
-                <p className="text-base font-medium text-gray-900 dark:text-white">
-                  {product.category?.name || 'Uncategorized'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Unit of Measure</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Unit of Measure (UOM)</p>
                 <p className="text-base font-medium text-gray-900 dark:text-white">{product.unitOfMeasure || 'Units'}</p>
               </div>
               <div>
@@ -747,11 +707,89 @@ function ProductDetailModal({ product, onClose }) {
                   {product.unitPrice ? `${product.unitPrice.toLocaleString()} Rs` : '0 Rs'}
                 </p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Reorder Point</p>
-                <p className="text-base font-medium text-gray-900 dark:text-white">{product.reorderPoint || 0}</p>
+              {product.description && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Description</p>
+                  <p className="text-base text-gray-900 dark:text-white">{product.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Reorder Information */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Reorder Information</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Min Stock</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+                  {product.minStock?.toLocaleString() || '0'}
+                </p>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Max Stock</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+                  {product.maxStock ? product.maxStock.toLocaleString() : '∞'}
+                </p>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+                <p className="text-sm text-yellow-700 dark:text-yellow-400">Reorder Point</p>
+                <p className="text-xl font-bold text-yellow-900 dark:text-yellow-300 mt-1">
+                  {product.reorderPoint?.toLocaleString() || '0'}
+                </p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <p className="text-sm text-blue-700 dark:text-blue-400">Reorder Quantity</p>
+                <p className="text-xl font-bold text-blue-900 dark:text-blue-300 mt-1">
+                  {product.reorderQuantity?.toLocaleString() || '0'}
+                </p>
               </div>
             </div>
+            {(() => {
+              const totalAvailable = stockByWarehouse.reduce((sum, item) => sum + item.totalAvailable, 0)
+              const reorderPoint = product.reorderPoint || 0
+              const isLowStock = totalAvailable > 0 && totalAvailable <= reorderPoint
+              const isOutOfStock = totalAvailable === 0
+              
+              const statusBg = isOutOfStock 
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                : isLowStock 
+                ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+              
+              const statusText = isOutOfStock 
+                ? 'text-red-700 dark:text-red-400'
+                : isLowStock 
+                ? 'text-yellow-700 dark:text-yellow-400'
+                : 'text-green-700 dark:text-green-400'
+              
+              const statusTitle = isOutOfStock 
+                ? 'text-red-900 dark:text-red-300'
+                : isLowStock 
+                ? 'text-yellow-900 dark:text-yellow-300'
+                : 'text-green-900 dark:text-green-300'
+              
+              return (
+                <div className={`mt-4 p-4 rounded-lg border-2 ${statusBg}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-sm font-medium ${statusText}`}>
+                        Stock Status
+                      </p>
+                      <p className={`text-2xl font-bold ${statusTitle} mt-1`}>
+                        {isOutOfStock ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Available</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                        {totalAvailable.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Stock by Warehouse */}
