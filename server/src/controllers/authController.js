@@ -42,13 +42,17 @@ const registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Check if this is the first user in the system
+    const userCount = await prisma.user.count();
+    const userRole = userCount === 0 ? 'ADMIN' : 'STAFF';
+
     // Create user
     const user = await prisma.user.create({
       data: {
         username,
         email,
         password: hashedPassword,
-        role: 'STAFF', // Default role
+        role: userRole, // First user is ADMIN, others are STAFF
       },
     });
 
@@ -57,6 +61,7 @@ const registerUser = async (req, res) => {
         _id: user.id,
         username: user.username,
         email: user.email,
+        role: user.role,
         token: generateToken(user.id),
       });
     } else {
@@ -95,6 +100,7 @@ const loginUser = async (req, res) => {
       _id: user.id,
       username: user.username,
       email: user.email,
+      role: user.role,
       token: generateToken(user.id),
     });
   } catch (err) {

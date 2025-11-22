@@ -133,7 +133,13 @@ export default function Signup() {
 
       if (data.token) {
         localStorage.setItem('token', data.token)
-        window.location.href = '/home'
+        
+        // Redirect based on user role
+        if (data.role === 'ADMIN' || data.role === 'MANAGER') {
+          window.location.href = '/admin/dashboard'
+        } else {
+          window.location.href = '/home'
+        }
       }
     } catch (err) {
       console.error(err)

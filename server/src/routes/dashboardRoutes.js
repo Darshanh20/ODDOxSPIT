@@ -7,16 +7,16 @@ const {
   getTopProducts,
   getAlerts
 } = require('../controllers/dashboardController');
-const { protect } = require('../middlewares/authMiddleware');
+const { protect, adminOnly } = require('../middlewares/authMiddleware');
 
-// All routes are protected
+// All routes require authentication
 router.use(protect);
 
-// Dashboard routes
-router.get('/kpis', getDashboardKPIs);
-router.get('/stock-overview', getStockOverview);
-router.get('/document-stats', getDocumentStatistics);
-router.get('/top-products', getTopProducts);
-router.get('/alerts', getAlerts);
+// Admin-only dashboard routes
+router.get('/kpis', adminOnly, getDashboardKPIs);
+router.get('/stock-overview', adminOnly, getStockOverview);
+router.get('/document-stats', adminOnly, getDocumentStatistics);
+router.get('/top-products', adminOnly, getTopProducts);
+router.get('/alerts', adminOnly, getAlerts);
 
 module.exports = router;
