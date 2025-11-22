@@ -11,7 +11,12 @@ This is an initial version of our Stock Management System. The project aims to p
 
 
 ## Tech Stack
-To be finalised. This section will be updated as the project progresses.
+ - React.js
+ - PostgreSQL
+ - Node.js
+ - Express.js
+ - Prisma ORM
+ - 
 
 ## Current Status
 Initial planning and basic repository setup completed. Development will proceed feature-by-feature.
