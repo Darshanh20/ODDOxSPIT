@@ -15,10 +15,10 @@ export default function Navbar() {
             to="/"
             className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
-            <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 text-sm font-bold">
-              SM
-            </div>
-            <span>StockMaster</span>
+            {/* <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 text-sm font-bold">
+              
+            </div> */}
+            <span>IronVault</span>
           </Link>
 
           {/* Navigation Links */}

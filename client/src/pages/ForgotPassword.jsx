@@ -145,7 +145,7 @@ export default function ForgotPassword() {
               <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">
                 SM
               </div>
-              <span className="text-2xl font-bold text-gray-900">StockMaster</span>
+              <span className="text-2xl font-bold text-gray-900">IronVault</span>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Verify OTP</h2>
             <p className="text-gray-600">Enter the OTP sent to {formData.emailOrPhone}</p>
@@ -234,7 +234,7 @@ export default function ForgotPassword() {
             <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">
               SM
             </div>
-            <span className="text-2xl font-bold text-gray-900">StockMaster</span>
+            <span className="text-2xl font-bold text-gray-900">IronVault</span>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h2>
           <p className="text-gray-600">Enter your email or phone to receive OTP</p>

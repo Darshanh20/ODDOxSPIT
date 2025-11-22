@@ -130,7 +130,7 @@ export default function ResetPassword() {
             <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">
               SM
             </div>
-            <span className="text-2xl font-bold text-gray-900">StockMaster</span>
+            <span className="text-2xl font-bold text-gray-900">IronVault</span>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Set New Password</h2>
           <p className="text-gray-600">Create a strong password for your account</p>
