@@ -607,15 +607,49 @@ const validateDelivery = async (req, res) => {
               sourceLocationId = relatedTransfer.fromLocationId;
             }
             
-            const existingStock = await tx.stock.findFirst({
-              where: {
-                productId: deliveryItem.productId,
-                warehouseId: delivery.warehouseId,
-                locationId: sourceLocationId
-              }
-            });
+            // Find existing stock - try with specific location first, then try locationId: null, then any location
+            let existingStock = null;
+            
+            if (sourceLocationId) {
+              existingStock = await tx.stock.findFirst({
+                where: {
+                  productId: deliveryItem.productId,
+                  warehouseId: delivery.warehouseId,
+                  locationId: sourceLocationId
+                }
+              });
+            }
+            
+            // If not found with specific location, try locationId: null
+            if (!existingStock) {
+              existingStock = await tx.stock.findFirst({
+                where: {
+                  productId: deliveryItem.productId,
+                  warehouseId: delivery.warehouseId,
+                  locationId: null
+                }
+              });
+            }
+            
+            // If still not found, find any stock record for this product in this warehouse
+            if (!existingStock) {
+              existingStock = await tx.stock.findFirst({
+                where: {
+                  productId: deliveryItem.productId,
+                  warehouseId: delivery.warehouseId
+                },
+                orderBy: {
+                  quantity: 'desc' // Use the location with most stock
+                }
+              });
+            }
 
             if (existingStock) {
+              // Check if we have enough stock
+              if (existingStock.quantity < quantityDelivered) {
+                throw new Error(`Insufficient stock for product ${deliveryItem.product?.name || deliveryItem.productId}. Available: ${existingStock.quantity}, Required: ${quantityDelivered}`);
+              }
+              
               const newQuantity = existingStock.quantity - quantityDelivered;
               const newReserved = Math.max(0, existingStock.reserved - quantityDelivered);
               
@@ -633,7 +667,7 @@ const validateDelivery = async (req, res) => {
                 data: {
                   productId: deliveryItem.productId,
                   warehouseId: delivery.warehouseId,
-                  locationId: sourceLocationId,
+                  locationId: existingStock.locationId,
                   transactionType: 'OUT',
                   referenceType: 'DELIVERY',
                   referenceId: delivery.id,
@@ -643,6 +677,8 @@ const validateDelivery = async (req, res) => {
                   notes: `Delivery ${delivery.deliveryNumber}`
                 }
               });
+            } else {
+              throw new Error(`No stock found for product ${deliveryItem.product?.name || deliveryItem.productId} in warehouse`);
             }
 
             // If this is an internal transfer, add stock to destination warehouse

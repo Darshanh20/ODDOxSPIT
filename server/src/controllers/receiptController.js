@@ -292,14 +292,27 @@ const validateReceipt = async (req, res) => {
         const receiptItem = receipt.items.find(ri => ri.id === item.itemId);
         
         if (receiptItem && item.quantityReceived > 0) {
-          // Update or create stock
-          const existingStock = await tx.stock.findFirst({
+          // Find existing stock - try with locationId: null first, then try any location in the warehouse
+          let existingStock = await tx.stock.findFirst({
             where: {
               productId: receiptItem.productId,
               warehouseId: receipt.warehouseId,
               locationId: null
             }
           });
+
+          // If not found with locationId: null, find any stock record for this product in this warehouse
+          if (!existingStock) {
+            existingStock = await tx.stock.findFirst({
+              where: {
+                productId: receiptItem.productId,
+                warehouseId: receipt.warehouseId
+              },
+              orderBy: {
+                quantity: 'desc' // Use the location with most stock
+              }
+            });
+          }
 
           if (existingStock) {
             const newQuantity = existingStock.quantity + item.quantityReceived;
@@ -316,6 +329,7 @@ const validateReceipt = async (req, res) => {
               data: {
                 productId: receiptItem.productId,
                 warehouseId: receipt.warehouseId,
+                locationId: existingStock.locationId,
                 transactionType: 'IN',
                 referenceType: 'RECEIPT',
                 referenceId: receipt.id,
@@ -326,10 +340,12 @@ const validateReceipt = async (req, res) => {
               }
             });
           } else {
-            await tx.stock.create({
+            // Create new stock record at warehouse level (locationId: null)
+            const newStock = await tx.stock.create({
               data: {
                 productId: receiptItem.productId,
                 warehouseId: receipt.warehouseId,
+                locationId: null,
                 quantity: item.quantityReceived,
                 available: item.quantityReceived,
                 reserved: 0
@@ -341,6 +357,7 @@ const validateReceipt = async (req, res) => {
               data: {
                 productId: receiptItem.productId,
                 warehouseId: receipt.warehouseId,
+                locationId: null,
                 transactionType: 'IN',
                 referenceType: 'RECEIPT',
                 referenceId: receipt.id,
