@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Package, BarChart3, Lock, Zap, Users, AlertCircle } from 'lucide-react'
-/* DASHBOARD SNAPSHOT - toggle on production as needed | Design ref: /mnt/data/StockMaster.pdf */
 import DashboardSnapshot from '../components/DashboardSnapshot'
+import Navbar from '../components/navbar'
 
 export default function Landing() {
   const [isVisible, setIsVisible] = useState(false)
@@ -12,8 +12,9 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 overflow-hidden transition-colors duration-300">
+      <Navbar />
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 mt-4">
         <div className="text-center mb-20">
           <h2 className={`text-5xl sm:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight transition-all duration-1000 ${
             isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
