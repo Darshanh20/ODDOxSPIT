@@ -31,9 +31,11 @@ export default function Login() {
     e.preventDefault()
     const newErrors = {}
 
-    // Validate username
+    // Validate Login Id
     if (!formData.username.trim()) {
-      newErrors.username = 'Login ID is required'
+      newErrors.username = 'Login Id is required'
+    } else if (formData.username.trim().length < 6 || formData.username.trim().length > 12) {
+      newErrors.username = 'Login Id must be between 6-12 characters'
     }
 
     // Validate password
@@ -52,7 +54,7 @@ export default function Login() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: formData.username,
+          username: formData.username.trim(),
           password: formData.password,
         }),
       })
@@ -60,54 +62,53 @@ export default function Login() {
       const data = await response.json()
 
       if (!response.ok) {
-        setErrors({ submit: data.message || 'Login failed' })
+        // Show specific error message from backend
+        setErrors({ submit: data.message || 'Invalid Login Id or Password' })
         return
       }
 
       if (data.token) {
         localStorage.setItem('token', data.token)
-        window.location.href = '/home'
+        navigate('/home')
       }
     } catch (err) {
       console.error(err)
-      setErrors({ submit: err.message || 'Login failed. Please try again.' })
+      setErrors({ submit: 'Invalid Login Id or Password' })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Header Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+            <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 text-sm font-bold">
               SM
             </div>
-            <span className="text-2xl font-bold text-gray-900">StockMaster</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">StockMaster</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-          <p className="text-gray-600">Sign in to your StockMaster account</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-8">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Login ID Field */}
+            {/* Login Id Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Login ID <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Login Id <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 name="username"
                 value={formData.username}
                 onChange={handleInputChange}
-                placeholder="e.g., SM20251234"
-                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none ${
+                placeholder="Enter your Login Id"
+                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
                   errors.username
                     ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                    : 'border-gray-300 focus:ring-2 focus:ring-gray-900 focus:border-transparent'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent'
                 }`}
               />
               {errors.username && (
@@ -119,7 +120,7 @@ export default function Login() {
 
             {/* Password Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 Password <span className="text-red-500">*</span>
               </label>
               <input
@@ -128,10 +129,10 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Enter your password"
-                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none ${
+                className={`w-full px-4 py-3 border rounded-lg transition-all focus:outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 ${
                   errors.password
                     ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                    : 'border-gray-300 focus:ring-2 focus:ring-gray-900 focus:border-transparent'
+                    : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent'
                 }`}
               />
               {errors.password && (
@@ -153,19 +154,22 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed uppercase"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          {/* Sign Up Link */}
-          <p className="text-center text-gray-600 mt-6">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-gray-900 font-semibold hover:underline">
-              Create one
+          {/* Links */}
+          <div className="mt-6 flex items-center justify-between text-sm">
+            <Link to="/forgot-password" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:underline">
+              Forget Password?
             </Link>
-          </p>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <Link to="/signup" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:underline">
+              Sign Up
+            </Link>
+          </div>
         </div>
       </div>
     </div>
