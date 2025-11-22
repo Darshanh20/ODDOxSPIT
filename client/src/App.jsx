@@ -17,6 +17,7 @@ import Delivery from './pages/Delivery'
 import DeliveryDetail from './pages/DeliveryDetail'
 import StockAdjustment from './pages/StockAdjustment'
 import MoveHistory from './pages/MoveHistory'
+import ReceiptDetail from './pages/ReceiptDetail'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { useTheme } from './contexts/ThemeContext'
@@ -148,16 +149,26 @@ export default function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/receipts" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Receipt />
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+           <Route 
+             path="/receipts" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <Receipt />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
+           <Route 
+             path="/receipts/:id" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <ReceiptDetail />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
            <Route 
              path="/deliveries" 
              element={
