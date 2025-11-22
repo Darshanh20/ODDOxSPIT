@@ -128,6 +128,8 @@ const createInternalTransfer = async (req, res) => {
       fromLocationId,
       toLocationId,
       scheduledDate,
+      fromContact,
+      contactName,
       notes,
       items
     } = req.body;
@@ -152,6 +154,8 @@ const createInternalTransfer = async (req, res) => {
         fromLocationId,
         toLocationId,
         scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+        fromContact: fromContact || null,
+        contactName: contactName || null,
         notes,
         status: 'DRAFT', // Start as DRAFT
         createdById: userId,

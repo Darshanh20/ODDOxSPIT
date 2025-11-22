@@ -149,10 +149,16 @@ const getMoveHistory = async (req, res) => {
           const transfer = transfers.find(t => t.id === entry.referenceId);
           if (transfer) {
             reference = transfer.transferNumber;
-            contactName = 'Internal Transfer';
-            fromLocation = transfer.fromWarehouse?.name || 'N/A';
-            if (transfer.fromLocation) {
-              fromLocation += ` / ${transfer.fromLocation.name}`;
+            // Use contactName from transfer if provided, otherwise default to 'Internal Transfer'
+            contactName = transfer.contactName || 'Internal Transfer';
+            // Use fromContact from transfer if provided, otherwise use warehouse/location name
+            if (transfer.fromContact) {
+              fromLocation = transfer.fromContact;
+            } else {
+              fromLocation = transfer.fromWarehouse?.name || 'N/A';
+              if (transfer.fromLocation) {
+                fromLocation += ` / ${transfer.fromLocation.name}`;
+              }
             }
             toLocation = transfer.toWarehouse?.name || 'N/A';
             if (transfer.toLocation) {

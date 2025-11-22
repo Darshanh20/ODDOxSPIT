@@ -15,6 +15,8 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
     fromLocationId: '',
     toWarehouseId: '',
     toLocationId: '',
+    fromContact: '',
+    contactName: '',
     items: [{ productId: '', quantity: 0 }]
   })
 
@@ -27,6 +29,8 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
         fromLocationId: '',
         toWarehouseId: '',
         toLocationId: '',
+        fromContact: '',
+        contactName: '',
         items: [{ productId: '', quantity: 0 }]
       })
       setErrors({})
@@ -228,6 +232,8 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
           fromLocationId: formData.fromLocationId || null,
           toWarehouseId: formData.toWarehouseId,
           toLocationId: formData.toLocationId || null,
+          fromContact: formData.fromContact || null,
+          contactName: formData.contactName || null,
           items: formData.items.map(item => ({
             productId: item.productId,
             quantityRequested: parseFloat(item.quantity)
@@ -366,6 +372,35 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* From Contact and Contact Name */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                From Contact
+              </label>
+              <input
+                type="text"
+                value={formData.fromContact}
+                onChange={(e) => setFormData(prev => ({ ...prev, fromContact: e.target.value }))}
+                placeholder="Enter source contact/vendor name"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Contact Name
+              </label>
+              <input
+                type="text"
+                value={formData.contactName}
+                onChange={(e) => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
+                placeholder="Enter contact person name"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+              />
             </div>
           </div>
 
