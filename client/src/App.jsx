@@ -10,6 +10,9 @@ import Profile from './pages/Profile'
 import Home from './pages/Home'
 import AdminDashboard from './pages/AdminDashboard'
 import Receipt from './pages/Receipt'
+import Warehouse from './pages/Warehouse'
+import Location from './pages/Location'
+import Products from './pages/Products'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { useTheme } from './contexts/ThemeContext'
@@ -136,10 +139,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-                    <p className="text-gray-600 mt-2">Products page coming soon...</p>
-                  </div>
+                  <Products />
                 </Layout>
               </ProtectedRoute>
             } 
@@ -199,8 +199,8 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Move History</h1>
-                    <p className="text-gray-600 mt-2">Move History page coming soon...</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Move History</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">Move History page coming soon...</p>
                   </div>
                 </Layout>
               </ProtectedRoute>
@@ -211,10 +211,17 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Warehouse</h1>
-                    <p className="text-gray-600 mt-2">Warehouse page coming soon...</p>
-                  </div>
+                  <Warehouse />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/location" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Location />
                 </Layout>
               </ProtectedRoute>
             } 

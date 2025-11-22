@@ -16,6 +16,7 @@ const {
   updateCategory,
   deleteCategory
 } = require('../controllers/warehouseController');
+const { updateStock } = require('../controllers/stockController');
 const { protect } = require('../middlewares/authMiddleware');
 
 // All routes are protected
@@ -40,5 +41,8 @@ router.get('/categories', getCategories);
 router.post('/categories', createCategory);
 router.put('/categories/:id', updateCategory);
 router.delete('/categories/:id', deleteCategory);
+
+// Stock update route
+router.put('/stock/update', updateStock);
 
 module.exports = router;

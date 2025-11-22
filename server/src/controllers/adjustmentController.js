@@ -429,21 +429,35 @@ const getStockLedger = async (req, res) => {
     if (warehouseId) where.warehouseId = warehouseId;
     if (referenceType) where.referenceType = referenceType;
 
-    const [ledger, total] = await Promise.all([
+    // Fetch warehouses and locations separately since StockLedger doesn't have direct relations
+    const [ledger, total, allWarehouses, allLocations] = await Promise.all([
       prisma.stockLedger.findMany({
         where,
         include: {
-          product: true
+          product: {
+            include: {
+              category: true
+            }
+          }
         },
         skip,
         take: parseInt(limit),
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.stockLedger.count({ where })
+      prisma.stockLedger.count({ where }),
+      prisma.warehouse.findMany({ where: { isActive: true } }),
+      prisma.location.findMany({ where: { isActive: true } })
     ]);
 
+    // Enrich ledger entries with warehouse and location data
+    const enrichedLedger = ledger.map(entry => ({
+      ...entry,
+      warehouse: allWarehouses.find(w => w.id === entry.warehouseId) || null,
+      location: entry.locationId ? (allLocations.find(l => l.id === entry.locationId) || null) : null
+    }));
+
     res.json({
-      ledger,
+      ledger: enrichedLedger,
       pagination: {
         total,
         page: parseInt(page),
