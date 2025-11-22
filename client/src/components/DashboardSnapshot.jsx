@@ -114,7 +114,8 @@ export default function DashboardSnapshot() {
           </p>
         </div>
 
-        {/* KPI Cards Row */}
+        <div className='bg-gray-200 p-10 border border-white  rounded-3xl shadow-xl'>
+          {/* KPI Cards Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {kpis.map((kpi, index) => {
             const Icon = kpi.icon
@@ -263,6 +264,7 @@ export default function DashboardSnapshot() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </section>

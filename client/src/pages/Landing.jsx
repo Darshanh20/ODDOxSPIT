@@ -51,7 +51,7 @@ export default function Landing() {
           {[0, 1, 2, 3, 4, 5].map((index) => (
             <div 
               key={index}
-              className={`p-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-lg hover:-translate-y-2 transition-all duration-500 ${
+              className={`p-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-lg hover:-translate-y-2 transition-all  cursor-pointer ${
                 isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
               }`}
               style={{
@@ -102,11 +102,13 @@ export default function Landing() {
             Bring your entire stock workflow into a single, seamless, and reliable system.
           </p>
           <a 
-            href="/signup" 
-            className="inline-block px-8 py-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-300 hover:shadow-lg hover:scale-105"
-          >
-            Start Your Free Trial
-          </a>
+              href="/login" 
+              className="px-8 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-300 hover:shadow-lg"
+            >
+              Sign In
+            </a>
+
+        
         </div>
       </section>
 
