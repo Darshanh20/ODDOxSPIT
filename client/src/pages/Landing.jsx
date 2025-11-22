@@ -11,8 +11,7 @@ export default function Landing() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 overflow-hidden">
-     
+    <div className="min-h-screen bg-white dark:bg-gray-900 overflow-hidden transition-colors duration-300">
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-20">
