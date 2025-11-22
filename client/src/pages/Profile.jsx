@@ -157,10 +157,10 @@ export default function Profile(){
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 px-4 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 px-4 py-12 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading profile...</p>
         </div>
       </div>
     )
@@ -168,24 +168,24 @@ export default function Profile(){
 
   if (error || !user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 px-4 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 px-4 py-12 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Failed to load profile'}</p>
-          <button onClick={() => navigate('/login')} className="text-blue-600 hover:underline">Go to Login</button>
+          <p className="text-red-600 dark:text-red-400 mb-4">{error || 'Failed to load profile'}</p>
+          <button onClick={() => navigate('/login')} className="text-blue-600 dark:text-blue-400 hover:underline">Go to Login</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 px-4 py-12 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Profile</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Profile</h2>
             <button 
               onClick={handleLogout}
-              className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
+              className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium transition-colors"
             >
               Logout
             </button>
@@ -205,7 +205,7 @@ export default function Profile(){
               </div>
               <label 
                 htmlFor="profile-image-input" 
-                className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full cursor-pointer shadow-lg transition-all duration-300 hover:scale-110"
+                className="absolute bottom-0 right-0 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-lg transition-all duration-300 hover:scale-110"
               >
                 <Camera size={20} />
               </label>
@@ -220,7 +220,7 @@ export default function Profile(){
             {profileImage && (
               <button
                 onClick={handleImageUpload}
-                className="mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                className="mt-4 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 text-white px-6 py-2 rounded-full font-semibold hover:from-blue-700 hover:to-purple-700 dark:hover:from-blue-600 dark:hover:to-purple-600 transition-all duration-300 shadow-md hover:shadow-lg"
               >
                 Upload Image
               </button>
@@ -228,58 +228,58 @@ export default function Profile(){
           </div>
 
           <div className="space-y-4">
-            <div className="border-b border-gray-200 pb-4">
-              <p className="text-sm text-gray-600 mb-1">Name</p>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Name</p>
               {isEditing ? (
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full text-lg font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-lg font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                   placeholder="Enter your name"
                 />
               ) : (
-                <p className="text-lg font-semibold text-gray-900">{user.name || 'Not provided'}</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{user.name || 'Not provided'}</p>
               )}
             </div>
-            <div className="border-b border-gray-200 pb-4">
-              <p className="text-sm text-gray-600 mb-1">Email</p>
-              <p className="text-lg font-semibold text-gray-900">{user.email}</p>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Email</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{user.email}</p>
             </div>
-            <div className="border-b border-gray-200 pb-4">
-              <p className="text-sm text-gray-600 mb-1">Username</p>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Username</p>
               {isEditing ? (
                 <input
                   type="text"
                   name="username"
                   value={formData.username}
                   onChange={handleInputChange}
-                  className="w-full text-lg font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-lg font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                   placeholder="Enter username"
                 />
               ) : (
-                <p className="text-lg font-semibold text-gray-900">{user.username || 'Not provided'}</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{user.username || 'Not provided'}</p>
               )}
             </div>
-            <div className="border-b border-gray-200 pb-4">
-              <p className="text-sm text-gray-600 mb-1">Phone</p>
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Phone</p>
               {isEditing ? (
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full text-lg font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-lg font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                   placeholder="Enter phone number"
                 />
               ) : (
-                <p className="text-lg font-semibold text-gray-900">{user.phone || 'Not provided'}</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{user.phone || 'Not provided'}</p>
               )}
             </div>
-            <div className="border-b border-gray-200 pb-4">
-              <p className="text-sm text-gray-600 mb-1">Member since</p>
-              <p className="text-lg font-semibold text-gray-900">
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Member since</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
                 {new Date(user.createdAt).toLocaleDateString('en-US', { 
                   year: 'numeric', 
                   month: 'long', 
@@ -295,13 +295,13 @@ export default function Profile(){
               <>
                 <button
                   onClick={handleSaveChanges}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 dark:hover:from-blue-600 dark:hover:to-purple-600 transition-all duration-300 shadow-md hover:shadow-lg"
                 >
                   Save Changes
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-all duration-300"
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-300"
                 >
                   Cancel
                 </button>
@@ -309,7 +309,7 @@ export default function Profile(){
             ) : (
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 dark:hover:from-blue-600 dark:hover:to-purple-600 transition-all duration-300 shadow-md hover:shadow-lg"
               >
                 Edit Profile
               </button>
