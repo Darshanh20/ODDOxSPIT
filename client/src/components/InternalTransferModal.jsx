@@ -238,9 +238,9 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
       if (response.ok) {
         const transfer = await response.json()
         
-        // Transfer and delivery are created in READY state
-        // Stock will be updated when delivery is validated/done
-        onSuccess({ message: 'Internal Transfer and Delivery Order created successfully in READY state', type: 'success' })
+        // Transfer is created in DRAFT state
+        // User needs to validate it to update stock
+        onSuccess({ message: 'Internal Transfer created successfully in DRAFT state. Please validate to complete the transfer.', type: 'success' })
         onClose()
       } else {
         const errorData = await response.json()

@@ -652,7 +652,17 @@ export default function Delivery() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          {delivery.customer?.name || delivery.shippingAddress?.replace('Vendor: ', '') || 'N/A'}
+                          {(() => {
+                            // Check if this is an internal transfer delivery
+                            const isInternalTransfer = delivery.notes && delivery.notes.includes('Internal Transfer:');
+                            if (isInternalTransfer) {
+                              // Extract destination from notes or show "Internal Transfer"
+                              const match = delivery.notes.match(/to (.+?)(?:\n|$)/);
+                              return match ? match[1] : 'Internal Transfer';
+                            }
+                            // Normal delivery - show customer name
+                            return delivery.customer?.name || delivery.shippingAddress?.replace('Vendor: ', '') || 'Customer';
+                          })()}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

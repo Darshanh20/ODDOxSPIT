@@ -455,7 +455,7 @@ export default function DeliveryDetail() {
       return
     }
     
-    // If status is READY, mark as DONE
+    // If status is READY, validate (mark as DONE and update stock)
     if (formData.status === 'READY') {
       try {
         setSaving(true)
@@ -472,33 +472,30 @@ export default function DeliveryDetail() {
               itemId: item.id,
               quantityDelivered: item.quantity
             })),
-            checkStock: false
+            checkStock: false // Don't check stock, just mark as DONE
           })
         })
 
         if (!response.ok) {
           const data = await response.json()
-          throw new Error(data.message || 'Failed to complete delivery')
+          throw new Error(data.message || 'Failed to validate delivery')
         }
 
         const updated = await response.json()
         setFormData(prev => ({ ...prev, status: updated.status }))
-        setSuccess('Delivery completed! Stock has been decreased.')
+        setSuccess('Delivery validated! Stock has been updated.')
         await fetchDelivery()
         setTimeout(() => setSuccess(''), 5000)
       } catch (err) {
-        console.error('Error completing delivery:', err)
-        setError(err.message || 'Failed to complete delivery')
+        console.error('Error validating delivery:', err)
+        setError(err.message || 'Failed to validate delivery')
       } finally {
         setSaving(false)
       }
       return
     }
     
-    // If status is DRAFT, check stock and set to WAITING or READY
-    // Check stock availability
-    const allInStock = checkStockAvailability()
-    
+    // If status is DRAFT or WAITING, check stock and set to WAITING or READY
     try {
       setSaving(true)
       const token = localStorage.getItem('token')
@@ -514,7 +511,7 @@ export default function DeliveryDetail() {
             itemId: item.id,
             quantityDelivered: item.quantity
           })),
-          checkStock: true
+          checkStock: true // Check stock and set status
         })
       })
 
@@ -534,7 +531,7 @@ export default function DeliveryDetail() {
           setError(`Products out of stock: ${productNames}`)
         }
       } else if (updated.status === 'READY') {
-        setSuccess('Delivery validated! Status updated to READY. Stock has been reserved.')
+        setSuccess('Delivery validated! Status updated to READY. Stock has been reserved. Click Validate to complete delivery.')
       }
       
       await fetchDelivery()
@@ -702,7 +699,7 @@ export default function DeliveryDetail() {
                   className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
-                  Mark Delivery as Done
+                  Validate
                 </button>
               )}
               <button

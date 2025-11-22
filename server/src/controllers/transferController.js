@@ -143,203 +143,41 @@ const createInternalTransfer = async (req, res) => {
 
     const transferNumber = await generateTransferNumber();
 
-    // Create transfer and corresponding delivery order in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create transfer in READY state
-      const transfer = await tx.internalTransfer.create({
-        data: {
-          transferNumber,
-          fromWarehouseId,
-          toWarehouseId,
-          fromLocationId,
-          toLocationId,
-          scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
-          notes,
-          status: 'READY',
-          createdById: userId,
-          items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              quantityRequested: item.quantityRequested,
-              quantityTransferred: 0,
-              notes: item.notes
-            }))
-          }
-        },
-        include: {
-          fromWarehouse: true,
-          toWarehouse: true,
-          fromLocation: true,
-          toLocation: true,
-          items: {
-            include: {
-              product: true
-            }
-          }
-        }
-      });
-
-      // Get source warehouse code for delivery number generation
-      const sourceWarehouse = await tx.warehouse.findUnique({
-        where: { id: fromWarehouseId }
-      });
-
-      // Generate unique delivery number with retry logic
-      const generateDeliveryNumber = async () => {
-        const warehousePrefix = sourceWarehouse?.code || 'WH';
-        let attempts = 0;
-        let deliveryNumber;
-        
-        while (attempts < 10) {
-          const lastDelivery = await tx.deliveryOrder.findFirst({
-            where: {
-              deliveryNumber: {
-                startsWith: `${warehousePrefix}/OUT/`
-              }
-            },
-            orderBy: {
-              createdAt: 'desc'
-            }
-          });
-
-          let sequence = 1;
-          if (lastDelivery) {
-            const parts = lastDelivery.deliveryNumber.split('/');
-            if (parts.length === 3 && parts[1] === 'OUT') {
-              const lastSequence = parseInt(parts[2]);
-              if (!isNaN(lastSequence)) {
-                sequence = lastSequence + 1;
-              }
-            }
-          }
-
-          deliveryNumber = `${warehousePrefix}/OUT/${String(sequence).padStart(4, '0')}`;
-          
-          // Check if this number already exists (race condition check)
-          const existing = await tx.deliveryOrder.findUnique({
-            where: { deliveryNumber }
-          });
-          
-          if (!existing) {
-            break; // Number is unique, use it
-          }
-          
-          attempts++;
-          // Add small delay to avoid race conditions
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-
-        if (attempts >= 10) {
-          // Fallback: use timestamp to ensure uniqueness
-          const timestamp = Date.now().toString().slice(-6);
-          deliveryNumber = `${warehousePrefix}/OUT/${timestamp}`;
-        }
-
-        return deliveryNumber;
-      };
-
-      const deliveryNumber = await generateDeliveryNumber();
-      
-      // Check stock availability for all items to determine delivery status
-      const stockChecks = await Promise.all(
-        items.map(async (item) => {
-          const stock = await tx.stock.findFirst({
-            where: {
-              productId: item.productId,
-              warehouseId: fromWarehouseId,
-              locationId: fromLocationId || null
-            }
-          });
-
-          const available = stock ? stock.available : 0;
-          const required = item.quantityRequested;
-          const isInStock = available >= required;
-
-          return {
+    // Create transfer in DRAFT state (no delivery created yet, no stock changes)
+    const transfer = await prisma.internalTransfer.create({
+      data: {
+        transferNumber,
+        fromWarehouseId,
+        toWarehouseId,
+        fromLocationId,
+        toLocationId,
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+        notes,
+        status: 'DRAFT', // Start as DRAFT
+        createdById: userId,
+        items: {
+          create: items.map(item => ({
             productId: item.productId,
-            required,
-            available,
-            isInStock
-          };
-        })
-      );
-
-      const allInStock = stockChecks.every(check => check.isInStock);
-      const deliveryStatus = allInStock ? 'READY' : 'WAITING';
-
-      // Create corresponding delivery order with appropriate status based on stock
-      const delivery = await tx.deliveryOrder.create({
-        data: {
-          deliveryNumber,
-          warehouseId: fromWarehouseId,
-          status: deliveryStatus,
-          notes: `Internal Transfer: ${transferNumber} to ${transfer.toWarehouse.name}`,
-          createdById: userId,
-          items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              quantityOrdered: item.quantityRequested,
-              quantityPicked: 0,
-              quantityPacked: 0,
-              quantityDelivered: 0,
-              notes: `Transfer to ${transfer.toWarehouse.name}`
-            }))
-          }
-        },
-        include: {
-          warehouse: true,
-          items: {
-            include: {
-              product: true
-            }
-          }
+            quantityRequested: item.quantityRequested,
+            quantityTransferred: 0,
+            notes: item.notes
+          }))
         }
-      });
-
-      // If all items are in stock, reserve the stock
-      if (allInStock && deliveryStatus === 'READY') {
-        for (const item of items) {
-          await tx.stock.updateMany({
-            where: {
-              productId: item.productId,
-              warehouseId: fromWarehouseId,
-              locationId: fromLocationId || null
-            },
-            data: {
-              reserved: {
-                increment: item.quantityRequested
-              },
-              available: {
-                decrement: item.quantityRequested
-              }
-            }
-          });
+      },
+      include: {
+        fromWarehouse: true,
+        toWarehouse: true,
+        fromLocation: true,
+        toLocation: true,
+        items: {
+          include: {
+            product: true
+          }
         }
       }
-
-      // Update transfer with delivery reference in notes
-      const updatedTransfer = await tx.internalTransfer.update({
-        where: { id: transfer.id },
-        data: {
-          notes: `${notes || ''}\nRelated Delivery: ${deliveryNumber}`.trim()
-        },
-        include: {
-          fromWarehouse: true,
-          toWarehouse: true,
-          fromLocation: true,
-          toLocation: true,
-          items: {
-            include: {
-              product: true
-            }
-          }
-        }
-      });
-
-      return { transfer: updatedTransfer, delivery };
     });
 
-    res.status(201).json(result.transfer);
+    res.status(201).json(transfer);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error creating internal transfer', error: error.message });
@@ -422,6 +260,10 @@ const validateInternalTransfer = async (req, res) => {
     const transfer = await prisma.internalTransfer.findUnique({
       where: { id },
       include: {
+        fromWarehouse: true,
+        toWarehouse: true,
+        fromLocation: true,
+        toLocation: true,
         items: {
           include: {
             product: true
@@ -438,15 +280,25 @@ const validateInternalTransfer = async (req, res) => {
       return res.status(400).json({ message: 'Transfer already validated' });
     }
 
+    if (transfer.status !== 'DRAFT' && transfer.status !== 'READY') {
+      return res.status(400).json({ message: `Cannot validate transfer with status: ${transfer.status}` });
+    }
+
+    // Use provided items or all transfer items
+    const itemsToProcess = items || transfer.items.map(item => ({
+      itemId: item.id,
+      quantityTransferred: item.quantityRequested
+    }));
+
     // Validate stock availability before processing
-    for (const item of items) {
+    for (const item of itemsToProcess) {
       const transferItem = transfer.items.find(ti => ti.id === item.itemId);
       if (transferItem && item.quantityTransferred > 0) {
         const sourceStock = await prisma.stock.findFirst({
           where: {
             productId: transferItem.productId,
             warehouseId: transfer.fromWarehouseId,
-            locationId: transfer.fromLocationId
+            locationId: transfer.fromLocationId || null
           }
         });
 
@@ -461,7 +313,7 @@ const validateInternalTransfer = async (req, res) => {
     // Update transfer and stock in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update transfer items with transferred quantities
-      for (const item of items) {
+      for (const item of itemsToProcess) {
         await tx.transferItem.update({
           where: { id: item.itemId },
           data: { quantityTransferred: item.quantityTransferred }
@@ -476,7 +328,7 @@ const validateInternalTransfer = async (req, res) => {
             where: {
               productId: transferItem.productId,
               warehouseId: transfer.fromWarehouseId,
-              locationId: transfer.fromLocationId
+              locationId: transfer.fromLocationId || null
             }
           });
 
@@ -512,7 +364,7 @@ const validateInternalTransfer = async (req, res) => {
             where: {
               productId: transferItem.productId,
               warehouseId: transfer.toWarehouseId,
-              locationId: transfer.toLocationId
+              locationId: transfer.toLocationId || null
             }
           });
 

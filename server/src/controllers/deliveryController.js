@@ -151,37 +151,8 @@ const createDeliveryOrder = async (req, res) => {
 
     const deliveryNumber = await generateDeliveryNumber(warehouse.code);
 
-    // Determine initial status based on items and stock availability
+    // Always create as DRAFT initially (user can validate later)
     let initialStatus = 'DRAFT';
-    
-    // If items are provided, check stock availability
-    if (items && Array.isArray(items) && items.length > 0) {
-      const stockChecks = await Promise.all(
-        items.map(async (item) => {
-          const stock = await prisma.stock.findFirst({
-            where: {
-              productId: item.productId,
-              warehouseId: warehouseId,
-              locationId: null
-            }
-          });
-
-          const available = stock ? stock.available : 0;
-          const required = item.quantityOrdered;
-          const isInStock = available >= required;
-
-          return {
-            productId: item.productId,
-            required,
-            available,
-            isInStock
-          };
-        })
-      );
-
-      const allInStock = stockChecks.every(check => check.isInStock);
-      initialStatus = allInStock ? 'READY' : 'WAITING';
-    }
 
     const delivery = await prisma.deliveryOrder.create({
       data: {
@@ -215,28 +186,7 @@ const createDeliveryOrder = async (req, res) => {
       }
     });
 
-    // If status is READY, reserve the stock
-    if (initialStatus === 'READY' && items && Array.isArray(items) && items.length > 0) {
-      await prisma.$transaction(
-        items.map(item => {
-          return prisma.stock.updateMany({
-            where: {
-              productId: item.productId,
-              warehouseId: warehouseId,
-              locationId: null
-            },
-            data: {
-              reserved: {
-                increment: item.quantityOrdered
-              },
-              available: {
-                decrement: item.quantityOrdered
-              }
-            }
-          });
-        })
-      );
-    }
+    // No stock reservation on creation - will be done on validation
 
     res.status(201).json(delivery);
   } catch (error) {
