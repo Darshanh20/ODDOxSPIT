@@ -56,10 +56,9 @@ const getMoveHistory = async (req, res) => {
         })
       : [];
 
-    // Fetch transfers
-    const transfers = referenceTypes.includes('TRANSFER')
+    // Fetch transfers (also needed for internal transfer deliveries)
+    const transfers = (referenceTypes.includes('TRANSFER') || referenceTypes.includes('DELIVERY'))
       ? await prisma.internalTransfer.findMany({
-          where: { id: { in: referenceIds } },
           include: { 
             fromWarehouse: true, 
             toWarehouse: true,
@@ -109,9 +108,38 @@ const getMoveHistory = async (req, res) => {
           if (delivery) {
             reference = delivery.deliveryNumber;
             contact = delivery.customer;
-            contactName = delivery.customer?.name || 'N/A';
+            
+            // Check if this is an internal transfer delivery
+            const isInternalTransfer = delivery.notes && delivery.notes.includes('Internal Transfer:');
+            
+            if (isInternalTransfer) {
+              // Extract transfer number and find the transfer
+              const transferMatch = delivery.notes.match(/Internal Transfer: ([A-Z0-9-]+)/);
+              if (transferMatch) {
+                const transferNumber = transferMatch[1];
+                const relatedTransfer = transfers.find(t => t.transferNumber === transferNumber);
+                if (relatedTransfer) {
+                  contactName = 'Internal Transfer';
+                  // Show destination warehouse and location
+                  toLocation = relatedTransfer.toWarehouse?.name || 'N/A';
+                  if (relatedTransfer.toLocation) {
+                    toLocation += ` / ${relatedTransfer.toLocation.name}`;
+                  }
+                } else {
+                  contactName = 'Internal Transfer';
+                  toLocation = 'N/A';
+                }
+              } else {
+                contactName = 'Internal Transfer';
+                toLocation = 'N/A';
+              }
+            } else {
+              // Normal delivery - show customer name
+              contactName = delivery.customer?.name || 'N/A';
+              toLocation = delivery.customer?.name || 'N/A';
+            }
+            
             fromLocation = delivery.warehouse?.name || entry.warehouse?.name || 'N/A';
-            toLocation = 'vendor';
             moveStatus = delivery.status;
             movementDirection = 'OUT';
           }

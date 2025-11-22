@@ -151,6 +151,38 @@ const createDeliveryOrder = async (req, res) => {
 
     const deliveryNumber = await generateDeliveryNumber(warehouse.code);
 
+    // Determine initial status based on items and stock availability
+    let initialStatus = 'DRAFT';
+    
+    // If items are provided, check stock availability
+    if (items && Array.isArray(items) && items.length > 0) {
+      const stockChecks = await Promise.all(
+        items.map(async (item) => {
+          const stock = await prisma.stock.findFirst({
+            where: {
+              productId: item.productId,
+              warehouseId: warehouseId,
+              locationId: null
+            }
+          });
+
+          const available = stock ? stock.available : 0;
+          const required = item.quantityOrdered;
+          const isInStock = available >= required;
+
+          return {
+            productId: item.productId,
+            required,
+            available,
+            isInStock
+          };
+        })
+      );
+
+      const allInStock = stockChecks.every(check => check.isInStock);
+      initialStatus = allInStock ? 'READY' : 'WAITING';
+    }
+
     const delivery = await prisma.deliveryOrder.create({
       data: {
         deliveryNumber,
@@ -159,7 +191,7 @@ const createDeliveryOrder = async (req, res) => {
         scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
         shippingAddress,
         notes,
-        status: 'DRAFT',
+        status: initialStatus,
         createdById: userId,
         items: (items && Array.isArray(items) && items.length > 0) ? {
           create: items.map(item => ({
@@ -183,6 +215,29 @@ const createDeliveryOrder = async (req, res) => {
       }
     });
 
+    // If status is READY, reserve the stock
+    if (initialStatus === 'READY' && items && Array.isArray(items) && items.length > 0) {
+      await prisma.$transaction(
+        items.map(item => {
+          return prisma.stock.updateMany({
+            where: {
+              productId: item.productId,
+              warehouseId: warehouseId,
+              locationId: null
+            },
+            data: {
+              reserved: {
+                increment: item.quantityOrdered
+              },
+              available: {
+                decrement: item.quantityOrdered
+              }
+            }
+          });
+        })
+      );
+    }
+
     res.status(201).json(delivery);
   } catch (error) {
     console.error(error);
@@ -198,7 +253,11 @@ const updateDeliveryOrder = async (req, res) => {
 
     // Check if delivery exists and is not DONE or CANCELED
     const existingDelivery = await prisma.deliveryOrder.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        items: true,
+        warehouse: true
+      }
     });
 
     if (!existingDelivery) {
@@ -209,8 +268,65 @@ const updateDeliveryOrder = async (req, res) => {
       return res.status(400).json({ message: 'Cannot update completed or canceled delivery order' });
     }
 
+    // Determine status if items are updated
+    let newStatus = status || existingDelivery.status;
+    
+    // If items are provided, check stock and update status accordingly
+    if (items && Array.isArray(items) && items.length > 0) {
+      const stockChecks = await Promise.all(
+        items.map(async (item) => {
+          const stock = await prisma.stock.findFirst({
+            where: {
+              productId: item.productId,
+              warehouseId: existingDelivery.warehouseId,
+              locationId: null
+            }
+          });
+
+          const available = stock ? stock.available : 0;
+          const required = item.quantityOrdered;
+          const isInStock = available >= required;
+
+          return {
+            productId: item.productId,
+            required,
+            available,
+            isInStock
+          };
+        })
+      );
+
+      const allInStock = stockChecks.every(check => check.isInStock);
+      
+      // Only update status if not explicitly set and items changed
+      if (!status) {
+        newStatus = allInStock ? 'READY' : 'WAITING';
+      }
+    }
+
     // Update delivery and items
     const delivery = await prisma.$transaction(async (tx) => {
+      // Release existing reservations if status was READY
+      if (existingDelivery.status === 'READY' && existingDelivery.items.length > 0) {
+        for (const item of existingDelivery.items) {
+          await tx.stock.updateMany({
+            where: {
+              productId: item.productId,
+              warehouseId: existingDelivery.warehouseId,
+              locationId: null
+            },
+            data: {
+              reserved: {
+                decrement: item.quantityOrdered
+              },
+              available: {
+                increment: item.quantityOrdered
+              }
+            }
+          });
+        }
+      }
+
       // Delete existing items if new items provided
       if (items) {
         await tx.deliveryItem.deleteMany({
@@ -219,14 +335,14 @@ const updateDeliveryOrder = async (req, res) => {
       }
 
       // Update delivery
-      return await tx.deliveryOrder.update({
+      const updatedDelivery = await tx.deliveryOrder.update({
         where: { id },
         data: {
           customerId,
           scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
           shippingAddress,
           notes,
-          status,
+          status: newStatus,
           items: items ? {
             create: items.map(item => ({
               productId: item.productId,
@@ -248,6 +364,29 @@ const updateDeliveryOrder = async (req, res) => {
           }
         }
       });
+
+      // If new status is READY and items are provided, reserve stock
+      if (newStatus === 'READY' && items && Array.isArray(items) && items.length > 0) {
+        for (const item of items) {
+          await tx.stock.updateMany({
+            where: {
+              productId: item.productId,
+              warehouseId: existingDelivery.warehouseId,
+              locationId: null
+            },
+            data: {
+              reserved: {
+                increment: item.quantityOrdered
+              },
+              available: {
+                decrement: item.quantityOrdered
+              }
+            }
+          });
+        }
+      }
+
+      return updatedDelivery;
     });
 
     res.json(delivery);
@@ -466,6 +605,36 @@ const validateDelivery = async (req, res) => {
 
     // If checkStock is false and status is READY, mark as DONE and decrease stock
     if (delivery.status === 'READY') {
+      // Check if this delivery is related to an internal transfer
+      const isInternalTransfer = delivery.notes && delivery.notes.includes('Internal Transfer:');
+      let relatedTransfer = null;
+      let toWarehouseId = null;
+      let toLocationId = null;
+
+      if (isInternalTransfer) {
+        // Extract transfer number from notes (format: "Internal Transfer: TRF-XXXX to Warehouse Name")
+        const transferMatch = delivery.notes.match(/Internal Transfer: ([A-Z0-9-]+)/);
+        if (transferMatch) {
+          const transferNumber = transferMatch[1];
+          relatedTransfer = await prisma.internalTransfer.findUnique({
+            where: { transferNumber },
+            include: {
+              toWarehouse: true,
+              toLocation: true,
+              items: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          });
+          if (relatedTransfer) {
+            toWarehouseId = relatedTransfer.toWarehouseId;
+            toLocationId = relatedTransfer.toLocationId;
+          }
+        }
+      }
+
       const result = await prisma.$transaction(async (tx) => {
         // Update delivery items with delivered quantities
         for (const item of items || delivery.items) {
@@ -481,12 +650,18 @@ const validateDelivery = async (req, res) => {
           const deliveryItem = delivery.items.find(di => di.id === itemId);
           
           if (deliveryItem && quantityDelivered > 0) {
-            // Update stock - decrease quantity and release reservation
+            // Update stock - decrease quantity and release reservation from source
+            // For internal transfers, check if we need to use specific location
+            let sourceLocationId = null;
+            if (isInternalTransfer && relatedTransfer) {
+              sourceLocationId = relatedTransfer.fromLocationId;
+            }
+            
             const existingStock = await tx.stock.findFirst({
               where: {
                 productId: deliveryItem.productId,
                 warehouseId: delivery.warehouseId,
-                locationId: null
+                locationId: sourceLocationId
               }
             });
 
@@ -503,11 +678,12 @@ const validateDelivery = async (req, res) => {
                 }
               });
 
-              // Create stock ledger entry
+              // Create stock ledger entry for source (OUT)
               await tx.stockLedger.create({
                 data: {
                   productId: deliveryItem.productId,
                   warehouseId: delivery.warehouseId,
+                  locationId: sourceLocationId,
                   transactionType: 'OUT',
                   referenceType: 'DELIVERY',
                   referenceId: delivery.id,
@@ -518,6 +694,106 @@ const validateDelivery = async (req, res) => {
                 }
               });
             }
+
+            // If this is an internal transfer, add stock to destination warehouse
+            if (isInternalTransfer && relatedTransfer && toWarehouseId) {
+              // Find corresponding transfer item
+              const transferItem = relatedTransfer.items.find(
+                ti => ti.productId === deliveryItem.productId
+              );
+
+              if (transferItem) {
+                // Add stock to destination warehouse/location
+                const destStock = await tx.stock.findFirst({
+                  where: {
+                    productId: deliveryItem.productId,
+                    warehouseId: toWarehouseId,
+                    locationId: toLocationId
+                  }
+                });
+
+                if (destStock) {
+                  const newDestQuantity = destStock.quantity + quantityDelivered;
+                  await tx.stock.update({
+                    where: { id: destStock.id },
+                    data: {
+                      quantity: newDestQuantity,
+                      available: newDestQuantity - destStock.reserved
+                    }
+                  });
+
+                  // Create stock ledger entry for destination (IN)
+                  await tx.stockLedger.create({
+                    data: {
+                      productId: deliveryItem.productId,
+                      warehouseId: toWarehouseId,
+                      locationId: toLocationId,
+                      transactionType: 'IN',
+                      referenceType: 'TRANSFER',
+                      referenceId: relatedTransfer.id,
+                      quantityBefore: destStock.quantity,
+                      quantityChange: quantityDelivered,
+                      quantityAfter: newDestQuantity,
+                      notes: `Transfer IN ${relatedTransfer.transferNumber}`
+                    }
+                  });
+                } else {
+                  // Create new stock record at destination
+                  await tx.stock.create({
+                    data: {
+                      productId: deliveryItem.productId,
+                      warehouseId: toWarehouseId,
+                      locationId: toLocationId,
+                      quantity: quantityDelivered,
+                      available: quantityDelivered,
+                      reserved: 0
+                    }
+                  });
+
+                  // Create stock ledger entry for destination (IN)
+                  await tx.stockLedger.create({
+                    data: {
+                      productId: deliveryItem.productId,
+                      warehouseId: toWarehouseId,
+                      locationId: toLocationId,
+                      transactionType: 'IN',
+                      referenceType: 'TRANSFER',
+                      referenceId: relatedTransfer.id,
+                      quantityBefore: 0,
+                      quantityChange: quantityDelivered,
+                      quantityAfter: quantityDelivered,
+                      notes: `Transfer IN ${relatedTransfer.transferNumber}`
+                    }
+                  });
+                }
+
+                // Update transfer item with transferred quantity
+                await tx.transferItem.update({
+                  where: { id: transferItem.id },
+                  data: { quantityTransferred: quantityDelivered }
+                });
+              }
+            }
+          }
+        }
+
+        // If this is an internal transfer, update transfer status to DONE
+        if (isInternalTransfer && relatedTransfer) {
+          // Check if all items are fully transferred
+          const allTransferred = relatedTransfer.items.every(item => {
+            const deliveryItem = delivery.items.find(di => di.productId === item.productId);
+            return deliveryItem && deliveryItem.quantityDelivered >= item.quantityRequested;
+          });
+
+          // Only update transfer to DONE if all items are transferred
+          if (allTransferred && relatedTransfer.status !== 'DONE') {
+            await tx.internalTransfer.update({
+              where: { id: relatedTransfer.id },
+              data: {
+                status: 'DONE',
+                transferredDate: new Date()
+              }
+            });
           }
         }
 

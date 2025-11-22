@@ -682,7 +682,17 @@ export default function DeliveryDetail() {
                   className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
-                  Validate
+                  Mark as Done
+                </button>
+              )}
+              {formData.status === 'WAITING' && (
+                <button
+                  onClick={handleValidate}
+                  disabled={saving || isLocked}
+                  className="px-4 py-2 bg-yellow-600 dark:bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-700 dark:hover:bg-yellow-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Check className="w-4 h-4" />
+                  Check Stock Again
                 </button>
               )}
               {formData.status === 'READY' && (
@@ -692,7 +702,7 @@ export default function DeliveryDetail() {
                   className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-600 transition-all duration-300 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
-                  Mark as Done
+                  Mark Delivery as Done
                 </button>
               )}
               <button

@@ -111,7 +111,6 @@ export default function Layout({ children }) {
     { icon: Package, label: 'Products', path: '/products' },
     { icon: FileText, label: 'Receipts', path: '/receipts' },
     { icon: Truck, label: 'Delivery Orders', path: '/deliveries' },
-    { icon: ArrowRightLeft, label: 'Internal Transfers', path: '/transfers' },
     { icon: RefreshCw, label: 'Adjustments', path: '/adjustments' },
     { icon: History, label: 'Move History', path: '/move-history' },
   ]

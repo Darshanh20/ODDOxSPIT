@@ -214,7 +214,7 @@ export default function Delivery() {
         scheduledDate: formData.scheduleDate || null,
         shippingAddress: formData.toVendor ? `Vendor: ${formData.toVendor}` : null,
         notes: formData.toVendor ? `Vendor: ${formData.toVendor}` : null,
-        status: formData.status,
+        status: 'DRAFT', // Always create as DRAFT
         items: [] // Empty items array for now
       }
 

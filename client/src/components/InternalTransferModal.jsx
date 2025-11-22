@@ -238,35 +238,10 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
       if (response.ok) {
         const transfer = await response.json()
         
-        // Auto-validate the transfer
-        try {
-          const validateResponse = await fetch(`http://localhost:5000/api/moves/internal/${transfer.id}/validate`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              items: transfer.items.map(item => ({
-                itemId: item.id,
-                quantityTransferred: item.quantityRequested
-              }))
-            })
-          })
-
-          if (validateResponse.ok) {
-            onSuccess({ message: 'Internal Transfer created and validated successfully', type: 'success' })
-            onClose()
-          } else {
-            const errorData = await validateResponse.json()
-            onSuccess({ message: 'Transfer created but validation failed: ' + (errorData.message || 'Insufficient stock'), type: 'error' })
-            onClose() // Close modal even if validation fails - transfer is created
-          }
-        } catch (validateError) {
-          console.error('Error validating transfer:', validateError)
-          onSuccess({ message: 'Internal Transfer created, but validation failed', type: 'error' })
-          onClose() // Close modal even if validation fails - transfer is created
-        }
+        // Transfer and delivery are created in READY state
+        // Stock will be updated when delivery is validated/done
+        onSuccess({ message: 'Internal Transfer and Delivery Order created successfully in READY state', type: 'success' })
+        onClose()
       } else {
         const errorData = await response.json()
         const errorMessage = errorData.message || 'Failed to create transfer'
