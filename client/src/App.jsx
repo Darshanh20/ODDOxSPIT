@@ -11,6 +11,7 @@ import Home from './pages/Home'
 import AdminDashboard from './pages/AdminDashboard'
 import Warehouse from './pages/Warehouse'
 import Location from './pages/Location'
+import Products from './pages/Products'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { useTheme } from './contexts/ThemeContext'
@@ -137,10 +138,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-                    <p className="text-gray-600 mt-2">Products page coming soon...</p>
-                  </div>
+                  <Products />
                 </Layout>
               </ProtectedRoute>
             } 
