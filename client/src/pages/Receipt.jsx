@@ -1,37 +1,87 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Download, AlertCircle, Edit2, Trash2, X, FileText, Calendar, Warehouse, User, LayoutGrid, List, CheckCircle, Printer } from 'lucide-react'
-import ReceiptListView from '../components/receipt/ReceiptListView'
-import ReceiptFormView from '../components/receipt/ReceiptFormView'
-import ReceiptKanbanView from '../components/receipt/ReceiptKanbanView'
+import { useNavigate } from 'react-router-dom'
+import { 
+  FileText, Plus, Search, List, LayoutGrid, Edit2, Trash2, 
+  Calendar, Filter, AlertCircle, Check, Warehouse as WarehouseIcon, User, MapPin
+} from 'lucide-react'
 
 export default function Receipt() {
+  const navigate = useNavigate()
   const [receipts, setReceipts] = useState([])
-  const [filteredReceipts, setFilteredReceipts] = useState([])
+  const [warehouses, setWarehouses] = useState([])
+  const [suppliers, setSuppliers] = useState([])
+  const [locations, setLocations] = useState({}) // { warehouseId: [locations] }
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [viewMode, setViewMode] = useState('list') // 'list' or 'kanban'
-  const [showForm, setShowForm] = useState(false)
-  const [selectedReceipt, setSelectedReceipt] = useState(null)
-  const [currentUser, setCurrentUser] = useState(null)
-  const [warehouseCode, setWarehouseCode] = useState('WH1') // Should be fetched from user's warehouse
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({
+    status: '',
+    warehouseId: '',
+    supplierId: '',
+    vendorName: '',
+    dateFrom: '',
+    dateTo: ''
+  })
 
   useEffect(() => {
-    getCurrentUser()
+    fetchWarehouses()
+    fetchSuppliers()
     fetchReceipts()
-  }, [])
+  }, [filters])
 
   useEffect(() => {
-    filterReceipts()
-  }, [receipts, searchTerm])
+    // Fetch locations for all warehouses
+    warehouses.forEach(wh => {
+      fetchLocations(wh.id)
+    })
+  }, [warehouses])
 
-  const getCurrentUser = () => {
+  const fetchWarehouses = async () => {
     try {
       const token = localStorage.getItem('token')
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      setCurrentUser(payload)
+      const response = await fetch('http://localhost:5000/api/warehouses?isActive=true', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setWarehouses(data)
+      }
     } catch (err) {
-      console.error('Error parsing user:', err)
+      console.error('Error fetching warehouses:', err)
+    }
+  }
+
+  const fetchSuppliers = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://localhost:5000/api/partners/suppliers?isActive=true', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setSuppliers(data.suppliers || data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching suppliers:', err)
+    }
+  }
+
+  const fetchLocations = async (warehouseId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(
+        `http://localhost:5000/api/warehouses/${warehouseId}/locations?isActive=true`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      )
+      if (response.ok) {
+        const data = await response.json()
+        setLocations(prev => ({ ...prev, [warehouseId]: data }))
+      }
+    } catch (err) {
+      console.error(`Error fetching locations for warehouse ${warehouseId}:`, err)
     }
   }
 
@@ -39,339 +89,448 @@ export default function Receipt() {
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/receipts', {
-        headers: { Authorization: `Bearer ${token}` }
+      
+      const params = new URLSearchParams()
+      if (filters.status) params.append('status', filters.status)
+      if (filters.warehouseId) params.append('warehouseId', filters.warehouseId)
+      if (filters.supplierId) params.append('supplierId', filters.supplierId)
+
+      const response = await fetch(`http://localhost:5000/api/receipts?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (!response.ok) throw new Error('Failed to fetch receipts')
-
-      const data = await response.json()
-      setReceipts(data.receipts || [])
-      setError(null)
+      if (response.ok) {
+        const data = await response.json()
+        let receiptsList = data.receipts || data || []
+        
+        // Apply additional filters
+        if (filters.vendorName) {
+          receiptsList = receiptsList.filter(rec => {
+            const vendorName = rec.supplier?.name || rec.notes?.replace('Vendor: ', '') || ''
+            return vendorName.toLowerCase().includes(filters.vendorName.toLowerCase())
+          })
+        }
+        
+        if (filters.dateFrom) {
+          receiptsList = receiptsList.filter(rec => {
+            if (!rec.scheduledDate) return false
+            return new Date(rec.scheduledDate) >= new Date(filters.dateFrom)
+          })
+        }
+        
+        if (filters.dateTo) {
+          receiptsList = receiptsList.filter(rec => {
+            if (!rec.scheduledDate) return false
+            return new Date(rec.scheduledDate) <= new Date(filters.dateTo)
+          })
+        }
+        
+        // Apply search query
+        if (searchQuery) {
+          receiptsList = receiptsList.filter(rec => {
+            const vendorName = rec.supplier?.name || rec.notes?.replace('Vendor: ', '') || ''
+            return rec.receiptNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              rec.supplier?.contactPerson?.toLowerCase().includes(searchQuery.toLowerCase())
+          })
+        }
+        
+        setReceipts(receiptsList)
+      } else {
+        throw new Error('Failed to fetch receipts')
+      }
+      
+      setError('')
     } catch (err) {
       console.error('Error fetching receipts:', err)
-      setError(err.message)
+      setError(err.message || 'Failed to load receipts')
     } finally {
       setLoading(false)
     }
   }
 
-  const filterReceipts = () => {
-    let filtered = receipts
-
-    if (searchTerm) {
-      filtered = filtered.filter(receipt =>
-        receipt.receiptNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        receipt.supplier?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        receipt.supplier?.contact?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this receipt?')) {
+      return
     }
 
-    setFilteredReceipts(filtered)
-  }
-
-  const handleCreateNew = () => {
-    setSelectedReceipt(null)
-    setShowForm(true)
-  }
-
-  const handleEdit = (receipt) => {
-    setSelectedReceipt(receipt)
-    setShowForm(true)
-  }
-
-  const handleFormClose = () => {
-    setShowForm(false)
-    setSelectedReceipt(null)
-  }
-
-  const handleFormSubmit = async (formData) => {
     try {
       const token = localStorage.getItem('token')
-      const method = selectedReceipt ? 'PUT' : 'POST'
-      const url = selectedReceipt
-        ? `http://localhost:5000/api/receipts/${selectedReceipt.id}`
-        : 'http://localhost:5000/api/receipts'
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
+      const response = await fetch(`http://localhost:5000/api/receipts/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (!response.ok) throw new Error('Failed to save receipt')
-
-      fetchReceipts()
-      handleFormClose()
-    } catch (err) {
-      console.error('Error saving receipt:', err)
-      setError(err.message)
-    }
-  }
-
-  const handleValidate = async (receiptId) => {
-    try {
-      const token = localStorage.getItem('token')
-      const receipt = receipts.find(r => r.id === receiptId)
-      
-      // Determine next status
-      let nextStatus = 'READY'
-      if (receipt.status === 'READY') {
-        nextStatus = 'DONE'
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to cancel receipt')
       }
 
-      const response = await fetch(`http://localhost:5000/api/receipts/${receiptId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ ...receipt, status: nextStatus })
-      })
-
-      if (!response.ok) throw new Error('Failed to validate receipt')
-
+      setSuccess('Receipt canceled successfully!')
       fetchReceipts()
+      setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
-      console.error('Error validating receipt:', err)
-      setError(err.message)
-    }
-  }
-
-  const handlePrint = (receiptId) => {
-    const receipt = receipts.find(r => r.id === receiptId)
-    if (!receipt) return
-
-    // Create a print window
-    const printWindow = window.open('', '', 'height=500,width=800')
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Receipt ${receipt.receiptNumber}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .header h1 { margin: 0; }
-          .details { margin-bottom: 20px; }
-          .details p { margin: 5px 0; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f5f5f5; }
-          .footer { margin-top: 30px; text-align: center; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Receipt ${receipt.receiptNumber}</h1>
-          <p>Status: ${receipt.status}</p>
-        </div>
-        <div class="details">
-          <p><strong>Supplier:</strong> ${receipt.supplier?.name || 'N/A'}</p>
-          <p><strong>Warehouse:</strong> ${receipt.warehouse?.name || 'N/A'}</p>
-          <p><strong>Scheduled Date:</strong> ${new Date(receipt.scheduledDate).toLocaleDateString()}</p>
-          <p><strong>Notes:</strong> ${receipt.notes || 'N/A'}</p>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Unit Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${receipt.items?.map(item => `
-              <tr>
-                <td>${item.product?.name || item.productId}</td>
-                <td>${item.quantityOrdered}</td>
-                <td>$${item.unitPrice}</td>
-                <td>$${(item.quantityOrdered * item.unitPrice).toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="footer">
-          <p>Printed on ${new Date().toLocaleString()}</p>
-        </div>
-      </body>
-      </html>
-    `
-    printWindow.document.write(html)
-    printWindow.document.close()
-    printWindow.print()
-  }
-
-  const handleDelete = async (receiptId) => {
-    if (!window.confirm('Are you sure you want to delete this receipt?')) return
-
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/receipts/${receiptId}/cancel`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      if (!response.ok) throw new Error('Failed to cancel receipt')
-
-      fetchReceipts()
-    } catch (err) {
-      console.error('Error deleting receipt:', err)
-      setError(err.message)
+      console.error('Error canceling receipt:', err)
+      setError(err.message || 'Failed to cancel receipt')
     }
   }
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'DRAFT':
-        return 'bg-gray-100 text-gray-800 border-gray-300'
-      case 'READY':
-        return 'bg-blue-100 text-blue-800 border-blue-300'
-      case 'DONE':
-        return 'bg-green-100 text-green-800 border-green-300'
-      case 'CANCELED':
-        return 'bg-red-100 text-red-800 border-red-300'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300'
+    const colors = {
+      DRAFT: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
+      READY: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400',
+      DONE: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400',
+      CANCELED: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
     }
+    return colors[status] || colors.DRAFT
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700 border-t-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading receipts...</p>
-        </div>
-      </div>
-    )
+  const getStatusLabel = (status) => {
+    const labels = {
+      DRAFT: 'Draft',
+      READY: 'Ready',
+      DONE: 'Done',
+      CANCELED: 'Canceled'
+    }
+    return labels[status] || status
+  }
+
+  const groupedByStatus = {
+    DRAFT: receipts.filter(r => r.status === 'DRAFT'),
+    READY: receipts.filter(r => r.status === 'READY'),
+    DONE: receipts.filter(r => r.status === 'DONE')
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 top-16 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Receipts</h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">Manage goods receipt operations</p>
-              </div>
-            </div>
-            <button
-              onClick={handleCreateNew}
-              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              New Receipt
-            </button>
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/receipts/new')}
+            className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            NEW
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <FileText className="w-8 h-8" />
+            Receipts
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search by reference or contact..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setTimeout(fetchReceipts, 300)
+              }}
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500 focus:border-transparent w-64"
+            />
           </div>
+          
+          {/* View Toggle */}
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2 rounded-lg transition-colors ${
+              viewMode === 'list'
+                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+            title="List View"
+          >
+            <List className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`p-2 rounded-lg transition-colors ${
+              viewMode === 'kanban'
+                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+            title="Kanban View"
+          >
+            <LayoutGrid className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <span className="text-red-700 dark:text-red-300">{error}</span>
-            <button
-              onClick={() => setError(null)}
-              className="ml-auto text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2">
+          <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <span className="text-sm text-green-700 dark:text-green-400">{success}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+          </button>
+        </div>
+        
+        {showFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
             >
-              <X className="w-4 h-4" />
-            </button>
+              <option value="">All Status</option>
+              <option value="DRAFT">Draft</option>
+              <option value="READY">Ready</option>
+              <option value="DONE">Done</option>
+            </select>
+            
+            <select
+              value={filters.warehouseId}
+              onChange={(e) => setFilters({ ...filters, warehouseId: e.target.value })}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+            >
+              <option value="">All Warehouses</option>
+              {warehouses.map(wh => (
+                <option key={wh.id} value={wh.id}>{wh.name} ({wh.code})</option>
+              ))}
+            </select>
+            
+            <select
+              value={filters.supplierId}
+              onChange={(e) => setFilters({ ...filters, supplierId: e.target.value })}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+            >
+              <option value="">All Suppliers</option>
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            
+            <input
+              type="date"
+              placeholder="From Date"
+              value={filters.dateFrom}
+              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+            />
+            
+            <input
+              type="date"
+              placeholder="To Date"
+              value={filters.dateTo}
+              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+            />
           </div>
         )}
+      </div>
 
-        {/* Form View */}
-        {showForm ? (
-          <ReceiptFormView
-            receipt={selectedReceipt}
-            warehouseCode={warehouseCode}
-            currentUser={currentUser}
-            onSubmit={handleFormSubmit}
-            onClose={handleFormClose}
-          />
-        ) : (
-          <>
-            {/* Toolbar */}
-            <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Search */}
-                <div className="flex-1 relative">
-                  <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="text"
-                    placeholder="Search by reference or contact..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  />
-                </div>
+      {/* List View */}
+      {viewMode === 'list' && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading receipts...</p>
+            </div>
+          ) : receipts.length === 0 ? (
+            <div className="p-8 text-center">
+              <FileText className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">No receipts found. Create your first receipt.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Reference
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      From
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      To
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Contact
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Schedule Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {receipts.map((receipt) => (
+                    <tr 
+                      key={receipt.id} 
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/receipts/${receipt.id}`)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white font-mono">
+                          {receipt.receiptNumber || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                          {receipt.supplier?.name || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <WarehouseIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                            {receipt.warehouse?.name || 'N/A'}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            ({receipt.warehouse?.code || 'N/A'})
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                          {receipt.supplier?.contactPerson || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                          {receipt.scheduledDate 
+                            ? new Date(receipt.scheduledDate).toLocaleDateString()
+                            : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(receipt.status)}`}>
+                          {getStatusLabel(receipt.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => navigate(`/receipts/${receipt.id}`)}
+                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Edit receipt"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {receipt.status !== 'DONE' && receipt.status !== 'CANCELED' && (
+                            <button
+                              onClick={() => handleDelete(receipt.id)}
+                              className="p-2 text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              title="Cancel receipt"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
-                {/* View Toggle */}
-                <div className="flex gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${
-                      viewMode === 'list'
-                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                    }`}
+      {/* Kanban View */}
+      {viewMode === 'kanban' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {['DRAFT', 'READY', 'DONE'].map(status => (
+            <div key={status} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {getStatusLabel(status)}
+                </h3>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}>
+                  {groupedByStatus[status]?.length || 0}
+                </span>
+              </div>
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                {groupedByStatus[status]?.map(receipt => (
+                  <div
+                    key={receipt.id}
+                    onClick={() => navigate(`/receipts/${receipt.id}`)}
+                    className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   >
-                    <List className="w-4 h-4" />
-                    <span className="text-sm font-medium">List</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('kanban')}
-                    className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${
-                      viewMode === 'kanban'
-                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                    }`}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                    <span className="text-sm font-medium">Kanban</span>
-                  </button>
-                </div>
-
-                {/* Export */}
-                <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium transition-colors">
-                  <Download className="w-4 h-4" />
-                  Export
-                </button>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                      {receipt.receiptNumber || 'N/A'}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                      {receipt.supplier?.name || 'N/A'} → {receipt.warehouse?.code || 'N/A'}
+                    </div>
+                    {receipt.scheduledDate && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(receipt.scheduledDate).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {(!groupedByStatus[status] || groupedByStatus[status].length === 0) && (
+                  <div className="text-center text-sm text-gray-400 dark:text-gray-500 py-4">
+                    No receipts
+                  </div>
+                )}
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Views */}
-            {viewMode === 'list' ? (
-              <ReceiptListView
-                receipts={filteredReceipts}
-                onEdit={handleEdit}
-                onValidate={handleValidate}
-                onPrint={handlePrint}
-                onDelete={handleDelete}
-              />
-            ) : (
-              <ReceiptKanbanView
-                receipts={filteredReceipts}
-                onEdit={handleEdit}
-                onValidate={handleValidate}
-                onPrint={handlePrint}
-                onDelete={handleDelete}
-              />
-            )}
-          </>
-        )}
+      {/* Warehouse Locations Section */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <MapPin className="w-5 h-5" />
+          Locations of Warehouses
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {warehouses.map(warehouse => (
+            <div key={warehouse.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <WarehouseIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <h3 className="font-medium text-gray-900 dark:text-white">
+                  {warehouse.name} ({warehouse.code})
+                </h3>
+              </div>
+              {locations[warehouse.id] && locations[warehouse.id].length > 0 ? (
+                <div className="space-y-1">
+                  {locations[warehouse.id].map(location => (
+                    <div key={location.id} className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                      <MapPin className="w-3 h-3" />
+                      {location.name} ({location.code})
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-500">No locations</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

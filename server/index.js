@@ -49,6 +49,9 @@ app.use('/api/dashboard', dashboardRoutes);
 const partnerRoutes = require('./src/routes/partnerRoutes');
 app.use('/api/partners', partnerRoutes);
 
+const moveHistoryRoutes = require('./src/routes/moveHistoryRoutes');
+app.use('/api/moves', moveHistoryRoutes);
+
 // A simple test route to make sure the server is running
 app.get('/', (req, res) => {
   res.send('API is running successfully!');
