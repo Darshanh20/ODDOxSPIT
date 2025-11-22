@@ -173,16 +173,6 @@ export default function DashboardSnapshot() {
                 All Warehouses
               </div>
             </div>
-
-            {/* Category Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Product Category
-              </label>
-              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200">
-                All Categories
-              </div>
-            </div>
           </div>
         </div>
 

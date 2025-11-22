@@ -76,7 +76,8 @@ export default function MoveHistory() {
 
   // Group moves by status for kanban view
   const groupedByStatus = moves.reduce((acc, move) => {
-    const status = move.status || 'DRAFT'
+    // Normalize status to uppercase to handle any case variations
+    const status = (move.status || 'DRAFT').toUpperCase()
     if (!acc[status]) {
       acc[status] = []
     }
@@ -84,7 +85,14 @@ export default function MoveHistory() {
     return acc
   }, {})
 
+  // Define status columns in order
   const statusColumns = ['DRAFT', 'WAITING', 'READY', 'DONE', 'CANCELED']
+  
+  // Get all unique statuses from moves (in case there are others)
+  const allStatuses = [...new Set(moves.map(m => (m.status || 'DRAFT').toUpperCase()))]
+  
+  // Combine defined columns with any additional statuses found
+  const displayColumns = [...new Set([...statusColumns, ...allStatuses])]
 
   const handleTransferSuccess = (toastData) => {
     if (typeof toastData === 'string') {
@@ -217,16 +225,16 @@ export default function MoveHistory() {
                       Reference
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Date
+                      From
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      To
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Contact
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      From
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      To
+                      Schedule Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Quantity
@@ -254,22 +262,22 @@ export default function MoveHistory() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-900 dark:text-white">
+                          {move.from || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {move.to || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {move.contact || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900 dark:text-white">
                           {new Date(move.date).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {move.contact}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {move.from}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {move.to}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -293,59 +301,86 @@ export default function MoveHistory() {
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {statusColumns.map((status) => {
-            const statusMoves = groupedByStatus[status] || []
-            return (
-              <div key={status} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {status}
-                  </h3>
-                  <span className="px-2 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
-                    {statusMoves.length}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {statusMoves.map((move) => (
-                    <div
-                      key={move.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                        move.movementDirection === 'IN'
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                          : move.movementDirection === 'OUT'
-                          ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                      }`}
-                    >
-                      <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+        <div className="overflow-x-auto pb-4">
+          {loading ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading move history...</div>
+          ) : moves.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              No move history found
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {moves.map((move) => {
+                // Determine block color based on movement direction - using light colors like list view
+                let blockClasses = ''
+                let borderClasses = ''
+                if (move.movementDirection === 'IN') {
+                  blockClasses = 'bg-green-50 dark:bg-green-900/10 border-l-4 border-green-500'
+                  borderClasses = 'border-gray-200 dark:border-gray-700'
+                } else if (move.movementDirection === 'OUT') {
+                  blockClasses = 'bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500'
+                  borderClasses = 'border-gray-200 dark:border-gray-700'
+                } else if (move.movementDirection === 'TRANSFER') {
+                  blockClasses = 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-500'
+                  borderClasses = 'border-gray-200 dark:border-gray-700'
+                } else {
+                  blockClasses = 'bg-white dark:bg-gray-800 border-l-4 border-gray-300 dark:border-gray-600'
+                  borderClasses = 'border-gray-200 dark:border-gray-700'
+                }
+
+                return (
+                  <div
+                    key={move.id}
+                    className={`${blockClasses} ${borderClasses} border-t border-r border-b rounded-lg p-4 cursor-pointer transition-all hover:shadow-md`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">
                         {move.reference}
                       </div>
-                      {move.product && (
-                        <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          {move.product.name}
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-500 dark:text-gray-500">
-                        {move.from} → {move.to}
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(move.status)}`}>
+                        {move.status}
+                      </span>
+                    </div>
+                    
+                    {move.product && (
+                      <div className="text-xs text-gray-700 dark:text-gray-300 mb-2 font-medium">
+                        {move.product.name}
+                        {move.product.sku && (
+                          <span className="text-gray-500 dark:text-gray-400 ml-1">({move.product.sku})</span>
+                        )}
                       </div>
-                      <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mt-1">
+                    )}
+                    
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">From:</span>
+                        <span>{move.from}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="font-medium">To:</span>
+                        <span>{move.to}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">
                         Qty: {move.quantity.toLocaleString()}
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {move.contact}
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(move.date).toLocaleDateString()}
                       </div>
                     </div>
-                  ))}
-                  {statusMoves.length === 0 && (
-                    <div className="text-sm text-gray-400 dark:text-gray-600 text-center py-4">
-                      No moves
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+                    
+                    {move.contact && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        {move.contact}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
