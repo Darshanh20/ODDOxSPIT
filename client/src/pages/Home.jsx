@@ -387,7 +387,7 @@ export default function Home() {
                   const inbound = product.inbound || 0
                   const outbound = product.outbound || 0
 
-                  return (
+  return (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-gray-900 dark:text-white truncate flex-1">

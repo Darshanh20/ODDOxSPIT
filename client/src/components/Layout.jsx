@@ -8,8 +8,9 @@ import {
   ArrowRightLeft,
   RefreshCw,
   History,
-  Warehouse,
   Settings,
+  Warehouse,
+  MapPin,
   User,
   LogOut,
   Search,
@@ -17,7 +18,9 @@ import {
   Menu,
   X,
   Moon,
-  Sun
+  Sun,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 
 export default function Layout({ children }) {
@@ -25,6 +28,7 @@ export default function Layout({ children }) {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false)
   const [notifications] = useState([
     { id: 1, message: 'New receipt pending approval', time: '5m ago' },
     { id: 2, message: 'Low stock alert: Product XYZ', time: '1h ago' },
@@ -110,13 +114,19 @@ export default function Layout({ children }) {
     { icon: ArrowRightLeft, label: 'Internal Transfers', path: '/transfers' },
     { icon: RefreshCw, label: 'Adjustments', path: '/adjustments' },
     { icon: History, label: 'Move History', path: '/move-history' },
+  ]
+
+  const settingsSubmenu = [
     { icon: Warehouse, label: 'Warehouse', path: '/warehouse' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-    { icon: User, label: 'Profile', path: '/profile' },
+    { icon: MapPin, label: 'Location', path: '/location' },
   ]
 
   const isActive = (path) => {
     return location.pathname === path
+  }
+
+  const isSettingsActive = () => {
+    return location.pathname === '/warehouse' || location.pathname === '/location' || location.pathname === '/settings'
   }
 
   return (
@@ -206,6 +216,82 @@ export default function Layout({ children }) {
                   </li>
                 )
               })}
+              
+              {/* Settings with Dropdown */}
+              <li>
+                <button
+                  onClick={() => {
+                    setSettingsDropdownOpen(!settingsDropdownOpen)
+                    if (sidebarOpen === false) {
+                      setSidebarOpen(true)
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isSettingsActive()
+                      ? 'bg-gray-800 dark:bg-gray-700 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 hover:text-white'
+                  }`}
+                  title={!sidebarOpen ? 'Settings' : ''}
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-5 h-5 flex-shrink-0" />
+                    {sidebarOpen && <span className="font-medium">Settings</span>}
+                  </div>
+                  {sidebarOpen && (
+                    settingsDropdownOpen ? (
+                      <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 flex-shrink-0" />
+                    )
+                  )}
+                </button>
+                
+                {/* Settings Dropdown Submenu */}
+                {settingsDropdownOpen && sidebarOpen && (
+                  <ul className="mt-1 ml-4 space-y-1 border-l-2 border-gray-700 dark:border-gray-600 pl-2">
+                    {settingsSubmenu.map((subItem) => {
+                      const SubIcon = subItem.icon
+                      const subActive = isActive(subItem.path)
+                      return (
+                        <li key={subItem.path}>
+                          <Link
+                            to={subItem.path}
+                            onClick={() => {
+                              setMobileMenuOpen(false)
+                              setSettingsDropdownOpen(false)
+                            }}
+                            className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                              subActive
+                                ? 'bg-gray-800 dark:bg-gray-700 text-white'
+                                : 'text-gray-400 hover:bg-gray-800 dark:hover:bg-gray-700 hover:text-white'
+                            }`}
+                          >
+                            <SubIcon className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">{subItem.label}</span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </li>
+              
+              {/* Profile */}
+              <li>
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive('/profile')
+                      ? 'bg-gray-800 dark:bg-gray-700 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 hover:text-white'
+                  }`}
+                  title={!sidebarOpen ? 'Profile' : ''}
+                >
+                  <User className="w-5 h-5 flex-shrink-0" />
+                  {sidebarOpen && <span className="font-medium">Profile</span>}
+                </Link>
+              </li>
             </ul>
           </nav>
 
