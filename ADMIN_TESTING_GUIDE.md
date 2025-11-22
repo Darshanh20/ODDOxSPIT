@@ -19,7 +19,7 @@ POST http://localhost:5000/api/auth/register
 Body:
 {
   "username": "SM20251",
-  "email": "admin@stockmaster.com",
+  "email": "admin@ironvault.com",
   "password": "Admin@1234"
 }
 
@@ -28,7 +28,7 @@ Response:
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "role": "ADMIN",  // ✅ First user is ADMIN
   "username": "SM20251",
-  "email": "admin@stockmaster.com"
+  "email": "admin@ironvault.com"
 }
 ```
 
@@ -47,7 +47,7 @@ Response:
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "role": "ADMIN",
   "username": "SM20251",
-  "email": "admin@stockmaster.com"
+  "email": "admin@ironvault.com"
 }
 ```
 
@@ -205,7 +205,7 @@ POST http://localhost:5000/api/auth/register
 # Create second user (will be STAFF)
 {
   "username": "SM20252",
-  "email": "staff@stockmaster.com",
+  "email": "staff@IronVault.com",
   "password": "Staff@1234"
 }
 

@@ -19,13 +19,13 @@ export default function Landing() {
           <h2 className={`text-5xl sm:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight transition-all duration-1000 ${
             isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}>
-            Smart Inventory<br />Management System
+            IronVault - A Smart Inventory<br />Management System
           </h2>
           
           <p className={`text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-3xl mx-auto leading-relaxed transition-all duration-1000 delay-200 ${
             isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}>
-            StockMaster is a smart, modern Inventory Management System designed to digitize and simplify all your stock operations in one powerful platform. Whether you're receiving goods, delivering orders, transferring items across locations, or performing stock counts, StockMaster keeps everything organized, accurate, and effortless.
+            IronVault is a smart, modern Inventory Management System designed to digitize and simplify all your stock operations in one powerful platform. Whether you're receiving goods, delivering orders, transferring items across locations, or performing stock counts, IronVault keeps everything organized, accurate, and effortless.
           </p>
           
           <div className={`flex flex-col sm:flex-row gap-4 justify-center items-center transition-all duration-1000 delay-300 ${

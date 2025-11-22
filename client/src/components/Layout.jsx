@@ -155,7 +155,7 @@ export default function Layout({ children }) {
                 <div className="w-8 h-8 bg-white dark:bg-gray-900 rounded-lg flex items-center justify-center">
                   <span className="text-gray-900 dark:text-white font-bold text-sm">SM</span>
                 </div>
-                <span className="text-xl font-bold">StockMaster</span>
+                <span className="text-xl font-bold">IronVault</span>
               </div>
             )}
             {!sidebarOpen && (

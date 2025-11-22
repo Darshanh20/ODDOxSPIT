@@ -88,7 +88,7 @@ export default function Login() {
             <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 text-sm font-bold">
               SM
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">StockMaster</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">IronVault</span>
           </div>
         </div>
 

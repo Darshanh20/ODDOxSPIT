@@ -4,7 +4,7 @@
  * A preview component showcasing the inventory management dashboard features
  * for new users on the landing page. Uses mock data only (no API calls).
  * 
- * Design Reference: /mnt/data/StockMaster.pdf
+ * Design Reference: /mnt/data/IronVault.pdf
  * 
  * Integration:
  * - Import this component in your Landing.jsx or App.jsx

@@ -3,7 +3,7 @@
 ## ✅ Complete Admin Dashboard System Built
 
 ### Overview
-A comprehensive Admin Module has been built for the StockMaster Inventory Management System with full role-based access control, real-time dashboards, and complete inventory oversight.
+A comprehensive Admin Module has been built for the IronVault Inventory Management System with full role-based access control, real-time dashboards, and complete inventory oversight.
 
 ---
 
