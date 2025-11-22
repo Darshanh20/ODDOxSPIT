@@ -24,6 +24,31 @@ app.use('/api/auth', authRoute);
 const userRoutes = require('./src/routes/userRoutes');
 app.use('/api/users', userRoutes);
 
+// Inventory Management System Routes
+const productRoutes = require('./src/routes/productRoutes');
+app.use('/api/products', productRoutes);
+
+const warehouseRoutes = require('./src/routes/warehouseRoutes');
+app.use('/api', warehouseRoutes);
+
+const receiptRoutes = require('./src/routes/receiptRoutes');
+app.use('/api/receipts', receiptRoutes);
+
+const deliveryRoutes = require('./src/routes/deliveryRoutes');
+app.use('/api/deliveries', deliveryRoutes);
+
+const transferRoutes = require('./src/routes/transferRoutes');
+app.use('/api/transfers', transferRoutes);
+
+const adjustmentRoutes = require('./src/routes/adjustmentRoutes');
+app.use('/api/adjustments', adjustmentRoutes);
+
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
+app.use('/api/dashboard', dashboardRoutes);
+
+const partnerRoutes = require('./src/routes/partnerRoutes');
+app.use('/api/partners', partnerRoutes);
+
 // A simple test route to make sure the server is running
 app.get('/', (req, res) => {
   res.send('API is running successfully!');
