@@ -13,6 +13,11 @@ import Receipt from './pages/Receipt'
 import Warehouse from './pages/Warehouse'
 import Location from './pages/Location'
 import Products from './pages/Products'
+import Delivery from './pages/Delivery'
+import DeliveryDetail from './pages/DeliveryDetail'
+import StockAdjustment from './pages/StockAdjustment'
+import MoveHistory from './pages/MoveHistory'
+import ReceiptDetail from './pages/ReceiptDetail'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import { useTheme } from './contexts/ThemeContext'
@@ -144,29 +149,46 @@ export default function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/receipts" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Receipt />
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/deliveries" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Delivery Orders</h1>
-                    <p className="text-gray-600 mt-2">Delivery Orders page coming soon...</p>
-                  </div>
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+           <Route 
+             path="/receipts" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <Receipt />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
+           <Route 
+             path="/receipts/:id" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <ReceiptDetail />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
+           <Route 
+             path="/deliveries" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <Delivery />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
+           <Route 
+             path="/deliveries/:id" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <DeliveryDetail />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
           <Route 
             path="/transfers" 
             element={
@@ -180,28 +202,22 @@ export default function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/adjustments" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Adjustments</h1>
-                    <p className="text-gray-600 mt-2">Adjustments page coming soon...</p>
-                  </div>
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+           <Route 
+             path="/adjustments" 
+             element={
+               <ProtectedRoute>
+                 <Layout>
+                   <StockAdjustment />
+                 </Layout>
+               </ProtectedRoute>
+             } 
+           />
           <Route 
             path="/move-history" 
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Move History</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-2">Move History page coming soon...</p>
-                  </div>
+                  <MoveHistory />
                 </Layout>
               </ProtectedRoute>
             } 

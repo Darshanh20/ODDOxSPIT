@@ -128,6 +128,11 @@ const createProduct = async (req, res) => {
       initialLocationId
     } = req.body;
 
+    // Validate reorder point is provided
+    if (reorderPoint === undefined || reorderPoint === null) {
+      return res.status(400).json({ message: 'Reorder point is required' });
+    }
+
     if (!name) {
       return res.status(400).json({ message: 'Product name is required' });
     }
