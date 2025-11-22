@@ -1,15 +1,24 @@
 const prisma = require('../utils/prismaClient');
 
 // Helper function to generate delivery number
-const generateDeliveryNumber = async () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+const generateDeliveryNumber = async (warehouseCode) => {
+  // Extract warehouse prefix (e.g., "WH" from "WH/PA/564")
+  let warehousePrefix = 'WH';
+  if (warehouseCode) {
+    if (warehouseCode.includes('/')) {
+      warehousePrefix = warehouseCode.split('/')[0];
+    } else if (warehouseCode.includes('-')) {
+      warehousePrefix = warehouseCode.split('-')[0];
+    } else {
+      warehousePrefix = warehouseCode.length >= 2 ? warehouseCode.substring(0, 2) : warehouseCode;
+    }
+  }
   
+  // Find the last delivery with the same warehouse prefix
   const lastDelivery = await prisma.deliveryOrder.findFirst({
     where: {
       deliveryNumber: {
-        startsWith: `DEL-${year}${month}`
+        startsWith: `${warehousePrefix}/OUT/`
       }
     },
     orderBy: {
@@ -19,11 +28,17 @@ const generateDeliveryNumber = async () => {
 
   let sequence = 1;
   if (lastDelivery) {
-    const lastSequence = parseInt(lastDelivery.deliveryNumber.split('-')[2]);
-    sequence = lastSequence + 1;
+    const parts = lastDelivery.deliveryNumber.split('/');
+    if (parts.length === 3 && parts[1] === 'OUT') {
+      const lastSequence = parseInt(parts[2]);
+      if (!isNaN(lastSequence)) {
+        sequence = lastSequence + 1;
+      }
+    }
   }
 
-  return `DEL-${year}${month}-${String(sequence).padStart(4, '0')}`;
+  // Format: {WAREHOUSE_CODE}/OUT/{SEQUENCE_NUMBER}
+  return `${warehousePrefix}/OUT/${String(sequence).padStart(4, '0')}`;
 };
 
 // Get all delivery orders with filters
@@ -121,11 +136,20 @@ const createDeliveryOrder = async (req, res) => {
     const { customerId, warehouseId, scheduledDate, shippingAddress, notes, items } = req.body;
     const userId = req.user.id;
 
-    if (!warehouseId || !items || items.length === 0) {
-      return res.status(400).json({ message: 'Warehouse and items are required' });
+    if (!warehouseId) {
+      return res.status(400).json({ message: 'Warehouse is required' });
     }
 
-    const deliveryNumber = await generateDeliveryNumber();
+    // Fetch warehouse to get code
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: warehouseId }
+    });
+
+    if (!warehouse) {
+      return res.status(404).json({ message: 'Warehouse not found' });
+    }
+
+    const deliveryNumber = await generateDeliveryNumber(warehouse.code);
 
     const delivery = await prisma.deliveryOrder.create({
       data: {
@@ -137,7 +161,7 @@ const createDeliveryOrder = async (req, res) => {
         notes,
         status: 'DRAFT',
         createdById: userId,
-        items: {
+        items: (items && Array.isArray(items) && items.length > 0) ? {
           create: items.map(item => ({
             productId: item.productId,
             quantityOrdered: item.quantityOrdered,
@@ -146,7 +170,7 @@ const createDeliveryOrder = async (req, res) => {
             quantityDelivered: 0,
             notes: item.notes
           }))
-        }
+        } : undefined
       },
       include: {
         customer: true,
@@ -327,11 +351,11 @@ const packDeliveryItems = async (req, res) => {
   }
 };
 
-// Validate delivery (complete delivery and update stock)
+// Validate delivery (check stock and set status to WAITING or READY)
 const validateDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-    const { items } = req.body; // Array of { itemId, quantityDelivered }
+    const { items, checkStock = false } = req.body; // Array of { itemId, quantityDelivered }
 
     const delivery = await prisma.deliveryOrder.findUnique({
       where: { id },
@@ -340,7 +364,8 @@ const validateDelivery = async (req, res) => {
           include: {
             product: true
           }
-        }
+        },
+        warehouse: true
       }
     });
 
@@ -349,66 +374,74 @@ const validateDelivery = async (req, res) => {
     }
 
     if (delivery.status === 'DONE') {
-      return res.status(400).json({ message: 'Delivery already validated' });
+      return res.status(400).json({ message: 'Delivery already completed' });
     }
 
-    // Update delivery and stock in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Update delivery items with delivered quantities
-      for (const item of items) {
-        await tx.deliveryItem.update({
-          where: { id: item.itemId },
-          data: { quantityDelivered: item.quantityDelivered }
-        });
+    if (delivery.status === 'CANCELED') {
+      return res.status(400).json({ message: 'Cannot validate canceled delivery' });
+    }
 
-        // Find the corresponding delivery item
-        const deliveryItem = delivery.items.find(di => di.id === item.itemId);
-        
-        if (deliveryItem && item.quantityDelivered > 0) {
-          // Update stock
-          const existingStock = await tx.stock.findFirst({
+    // If checkStock is true, validate stock and set status to WAITING or READY
+    if (checkStock) {
+      // Check stock availability for all items
+      const stockChecks = await Promise.all(
+        delivery.items.map(async (item) => {
+          const stock = await prisma.stock.findFirst({
             where: {
-              productId: deliveryItem.productId,
+              productId: item.productId,
               warehouseId: delivery.warehouseId,
               locationId: null
             }
           });
 
-          if (existingStock) {
-            const newQuantity = existingStock.quantity - item.quantityDelivered;
-            await tx.stock.update({
-              where: { id: existingStock.id },
-              data: {
-                quantity: newQuantity,
-                available: newQuantity - existingStock.reserved
-              }
-            });
+          const available = stock ? stock.available : 0;
+          const required = item.quantityOrdered;
+          const isInStock = available >= required;
 
-            // Create stock ledger entry
-            await tx.stockLedger.create({
-              data: {
-                productId: deliveryItem.productId,
+          return {
+            itemId: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            required,
+            available,
+            isInStock
+          };
+        })
+      );
+
+      const allInStock = stockChecks.every(check => check.isInStock);
+      const outOfStockItems = stockChecks.filter(check => !check.isInStock);
+
+      // Update delivery status based on stock availability
+      const newStatus = allInStock ? 'READY' : 'WAITING';
+
+      // If all in stock, reserve the stock
+      if (allInStock) {
+        await prisma.$transaction(
+          delivery.items.map(item => {
+            const stockCheck = stockChecks.find(sc => sc.itemId === item.id);
+            return prisma.stock.updateMany({
+              where: {
+                productId: item.productId,
                 warehouseId: delivery.warehouseId,
-                transactionType: 'OUT',
-                referenceType: 'DELIVERY',
-                referenceId: delivery.id,
-                quantityBefore: existingStock.quantity,
-                quantityChange: -item.quantityDelivered,
-                quantityAfter: newQuantity,
-                notes: `Delivery ${delivery.deliveryNumber}`
+                locationId: null
+              },
+              data: {
+                reserved: {
+                  increment: item.quantityOrdered
+                },
+                available: {
+                  decrement: item.quantityOrdered
+                }
               }
             });
-          }
-        }
+          })
+        );
       }
 
-      // Update delivery status
-      return await tx.deliveryOrder.update({
+      const updatedDelivery = await prisma.deliveryOrder.update({
         where: { id },
-        data: {
-          status: 'DONE',
-          deliveredDate: new Date()
-        },
+        data: { status: newStatus },
         include: {
           customer: true,
           warehouse: true,
@@ -419,9 +452,101 @@ const validateDelivery = async (req, res) => {
           }
         }
       });
-    });
 
-    res.json(result);
+      return res.json({
+        ...updatedDelivery,
+        stockChecks,
+        outOfStockItems: outOfStockItems.map(item => ({
+          productName: item.productName,
+          required: item.required,
+          available: item.available
+        }))
+      });
+    }
+
+    // If checkStock is false and status is READY, mark as DONE and decrease stock
+    if (delivery.status === 'READY') {
+      const result = await prisma.$transaction(async (tx) => {
+        // Update delivery items with delivered quantities
+        for (const item of items || delivery.items) {
+          const itemId = item.itemId || item.id;
+          const quantityDelivered = item.quantityDelivered || item.quantityOrdered;
+
+          await tx.deliveryItem.update({
+            where: { id: itemId },
+            data: { quantityDelivered }
+          });
+
+          // Find the corresponding delivery item
+          const deliveryItem = delivery.items.find(di => di.id === itemId);
+          
+          if (deliveryItem && quantityDelivered > 0) {
+            // Update stock - decrease quantity and release reservation
+            const existingStock = await tx.stock.findFirst({
+              where: {
+                productId: deliveryItem.productId,
+                warehouseId: delivery.warehouseId,
+                locationId: null
+              }
+            });
+
+            if (existingStock) {
+              const newQuantity = existingStock.quantity - quantityDelivered;
+              const newReserved = Math.max(0, existingStock.reserved - quantityDelivered);
+              
+              await tx.stock.update({
+                where: { id: existingStock.id },
+                data: {
+                  quantity: newQuantity,
+                  reserved: newReserved,
+                  available: newQuantity - newReserved
+                }
+              });
+
+              // Create stock ledger entry
+              await tx.stockLedger.create({
+                data: {
+                  productId: deliveryItem.productId,
+                  warehouseId: delivery.warehouseId,
+                  transactionType: 'OUT',
+                  referenceType: 'DELIVERY',
+                  referenceId: delivery.id,
+                  quantityBefore: existingStock.quantity,
+                  quantityChange: -quantityDelivered,
+                  quantityAfter: newQuantity,
+                  notes: `Delivery ${delivery.deliveryNumber}`
+                }
+              });
+            }
+          }
+        }
+
+        // Update delivery status to DONE
+        return await tx.deliveryOrder.update({
+          where: { id },
+          data: {
+            status: 'DONE',
+            deliveredDate: new Date()
+          },
+          include: {
+            customer: true,
+            warehouse: true,
+            items: {
+              include: {
+                product: true
+              }
+            }
+          }
+        });
+      });
+
+      return res.json(result);
+    }
+
+    // If status is not READY, return error
+    return res.status(400).json({ 
+      message: `Delivery must be in READY status to complete. Current status: ${delivery.status}` 
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error validating delivery', error: error.message });
