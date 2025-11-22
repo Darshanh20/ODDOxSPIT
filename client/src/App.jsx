@@ -44,6 +44,15 @@ export default function App() {
     setMobileMenuOpen(false)
   }, [location.pathname])
 
+  // Handle logo click
+  const handleLogoClick = (e) => {
+    if (isLoggedIn) {
+      e.preventDefault()
+      // Refresh the current page
+      window.location.reload()
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <header className={`sticky top-0 z-50 transition-all duration-300 ${
@@ -53,8 +62,10 @@ export default function App() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link 
-              to="/" 
-              className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors"
+              to={isLoggedIn ? "#" : "/"} 
+              onClick={handleLogoClick}
+              className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors cursor-pointer"
+              title={isLoggedIn ? "Refresh dashboard" : "Go to home"}
             >
               <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">
                 SM
