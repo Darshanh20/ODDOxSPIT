@@ -133,6 +133,18 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
     return stock ? stock.available : 0
   }
 
+  const getMaxTransferableQuantity = (productId) => {
+    const product = products.find(p => p.id === productId)
+    if (!product) return 0
+    
+    const available = getAvailableStock(productId)
+    const reorderPoint = product.reorderPoint || 0
+    
+    // Max transferable = available stock - reorder point (must keep stock above reorder point)
+    const maxTransferable = Math.max(0, available - reorderPoint)
+    return maxTransferable
+  }
+
   const handleAddItem = () => {
     setFormData(prev => ({
       ...prev,
@@ -188,8 +200,11 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
       }
       if (item.productId) {
         const available = getAvailableStock(item.productId)
+        const maxTransferable = getMaxTransferableQuantity(item.productId)
         if (item.quantity > available) {
           newErrors[`item_${index}`] = `Insufficient stock. Available: ${available}`
+        } else if (item.quantity > maxTransferable) {
+          newErrors[`item_${index}`] = `Exceeds max transferable. Max: ${maxTransferable} (Available: ${available} - Reorder Point: ${products.find(p => p.id === item.productId)?.reorderPoint || 0})`
         }
       }
     })
@@ -410,9 +425,11 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
                       <option value="">Select Product</option>
                       {products.map(product => {
                         const available = getAvailableStock(product.id)
+                        const maxTransferable = getMaxTransferableQuantity(product.id)
+                        const reorderPoint = product.reorderPoint || 0
                         return (
-                          <option key={product.id} value={product.id} disabled={available === 0}>
-                            {product.name} ({product.sku}) - Available: {available}
+                          <option key={product.id} value={product.id} disabled={maxTransferable === 0}>
+                            {product.name} ({product.sku}) - Available: {available}, Max Transferable: {maxTransferable} (Reorder: {reorderPoint})
                           </option>
                         )
                       })}
@@ -431,9 +448,17 @@ export default function InternalTransferModal({ isOpen, onClose, onSuccess }) {
                       placeholder="Quantity"
                     />
                     {item.productId && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Available: {getAvailableStock(item.productId)}
-                      </p>
+                      <div className="text-xs mt-1 space-y-1">
+                        <p className="text-gray-500 dark:text-gray-400">
+                          Available: {getAvailableStock(item.productId)}
+                        </p>
+                        <p className="text-blue-600 dark:text-blue-400 font-medium">
+                          Max Transferable: {getMaxTransferableQuantity(item.productId)}
+                        </p>
+                        <p className="text-gray-400 dark:text-gray-500">
+                          (Available - Reorder Point: {products.find(p => p.id === item.productId)?.reorderPoint || 0})
+                        </p>
+                      </div>
                     )}
                   </div>
                   <div className="col-span-2">

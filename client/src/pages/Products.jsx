@@ -19,6 +19,7 @@ export default function Products() {
     unitOfMeasure: 'Units',
     initialStock: 0,
     initialWarehouseId: '',
+    initialLocationId: '',
     unitPrice: 0,
     minStock: 0,
     maxStock: '',
@@ -27,6 +28,7 @@ export default function Products() {
   })
   const [formErrors, setFormErrors] = useState({})
   const [loadingSKU, setLoadingSKU] = useState(false)
+  const [availableLocations, setAvailableLocations] = useState([])
 
   useEffect(() => {
     fetchWarehouses()
@@ -35,6 +37,31 @@ export default function Products() {
   useEffect(() => {
     fetchProducts()
   }, [searchTerm])
+
+  useEffect(() => {
+    if (formData.initialWarehouseId) {
+      fetchLocations(formData.initialWarehouseId)
+    } else {
+      setAvailableLocations([])
+      setFormData(prev => ({ ...prev, initialLocationId: '' }))
+    }
+  }, [formData.initialWarehouseId])
+
+  const fetchLocations = async (warehouseId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:5000/api/warehouses/${warehouseId}/locations?isActive=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableLocations(data)
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error)
+      setAvailableLocations([])
+    }
+  }
 
   const fetchNextSKU = async () => {
     setLoadingSKU(true)
@@ -168,7 +195,7 @@ export default function Products() {
           reorderQuantity: formData.reorderQuantity || 0,
           initialStock: formData.initialStock || 0,
           initialWarehouseId: formData.initialStock > 0 ? (formData.initialWarehouseId || null) : null,
-          initialLocationId: null, // Can be added later if needed
+          initialLocationId: formData.initialStock > 0 ? (formData.initialLocationId || null) : null,
         })
       })
 
@@ -497,6 +524,52 @@ export default function Products() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Initial Warehouse <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.initialWarehouseId}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, initialWarehouseId: e.target.value, initialLocationId: '' }))
+                    if (formErrors.initialWarehouseId) setFormErrors(prev => ({ ...prev, initialWarehouseId: '' }))
+                  }}
+                  className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                    formErrors.initialWarehouseId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  } focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500`}
+                >
+                  <option value="">Select Warehouse</option>
+                  {warehouses.map(warehouse => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.initialWarehouseId && (
+                  <p className="text-sm text-red-500 mt-1">{formErrors.initialWarehouseId}</p>
+                )}
+              </div>
+
+              {formData.initialWarehouseId && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Initial Location
+                  </label>
+                  <select
+                    value={formData.initialLocationId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, initialLocationId: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+                  >
+                    <option value="">No Location (Warehouse Level)</option>
+                    {availableLocations.map(location => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -514,44 +587,56 @@ export default function Products() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Initial Warehouse <span className="text-red-500">*</span>
+                    Reorder Point <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={formData.initialWarehouseId}
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.reorderPoint}
                     onChange={(e) => {
-                      setFormData(prev => ({ ...prev, initialWarehouseId: e.target.value }))
-                      if (formErrors.initialWarehouseId) setFormErrors(prev => ({ ...prev, initialWarehouseId: '' }))
+                      setFormData(prev => ({ ...prev, reorderPoint: parseFloat(e.target.value) || 0 }))
+                      if (formErrors.reorderPoint) setFormErrors(prev => ({ ...prev, reorderPoint: '' }))
                     }}
                     className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                      formErrors.initialWarehouseId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      formErrors.reorderPoint ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500`}
-                  >
-                    <option value="">Select Warehouse</option>
-                    {warehouses.map(warehouse => (
-                      <option key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </option>
-                    ))}
-                  </select>
-                  {formErrors.initialWarehouseId && (
-                    <p className="text-sm text-red-500 mt-1">{formErrors.initialWarehouseId}</p>
+                    placeholder="0"
+                  />
+                  {formErrors.reorderPoint && (
+                    <p className="text-sm text-red-500 mt-1">{formErrors.reorderPoint}</p>
                   )}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Unit Price (Rs)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.unitPrice}
-                  onChange={(e) => setFormData(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
-                  placeholder="0.00"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Unit Price (Rs)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.unitPrice}
+                    onChange={(e) => setFormData(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Reorder Quantity
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.reorderQuantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, reorderQuantity: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-500"
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
               {formErrors.submit && (
@@ -577,12 +662,14 @@ export default function Products() {
                       unitOfMeasure: 'Units',
                       initialStock: 0,
                       initialWarehouseId: warehouses.length > 0 ? warehouses[0].id : '',
+                      initialLocationId: '',
                       unitPrice: 0,
                       minStock: 0,
                       maxStock: '',
                       reorderPoint: 0,
                       reorderQuantity: 0,
                     })
+                    setAvailableLocations([])
                     fetchNextSKU() // Generate new SKU for next product
                     setFormErrors({})
                   }}
