@@ -153,14 +153,14 @@ export default function Layout({ children }) {
             {sidebarOpen && (
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-white dark:bg-gray-900 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-900 dark:text-white font-bold text-sm">SM</span>
+                  <span className="text-gray-900 dark:text-white font-bold text-sm">IV</span>
                 </div>
                 <span className="text-xl font-bold">IronVault</span>
               </div>
             )}
             {!sidebarOpen && (
               <div className="w-8 h-8 bg-white dark:bg-gray-900 rounded-lg flex items-center justify-center mx-auto">
-                <span className="text-gray-900 dark:text-white font-bold text-sm">SM</span>
+                <span className="text-gray-900 dark:text-white font-bold text-sm">IV</span>
               </div>
             )}
             <div className="flex items-center gap-1">

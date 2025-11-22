@@ -15,7 +15,7 @@ export default function Landing() {
       <Navbar />
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 mt-4">
-        <div className="text-center mb-20">
+        <div className="text-center mb-20 flex flex-col gap-10 ">
           <h2 className={`text-5xl sm:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight transition-all duration-1000 ${
             isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}>
@@ -47,16 +47,14 @@ export default function Landing() {
         </div>
 
         {/* Feature Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 pt-20">
           {[0, 1, 2, 3, 4, 5].map((index) => (
             <div 
               key={index}
-              className={`p-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-lg hover:-translate-y-2 transition-all  cursor-pointer ${
+              className={`p-8 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-lg hover:-translate-y-1 transition-all  cursor-pointer ${
                 isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
               }`}
-              style={{
-                transitionDelay: isVisible ? `${300 + index * 100}ms` : '0ms'
-              }}
+              
             >
               {index === 0 && <Package className="w-8 h-8 text-gray-900 dark:text-white mb-4" />}
               {index === 1 && <BarChart3 className="w-8 h-8 text-gray-900 dark:text-white mb-4" />}
