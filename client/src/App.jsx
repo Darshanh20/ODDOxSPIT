@@ -6,22 +6,37 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Profile from './pages/Profile'
 import Home from './pages/Home'
+import AdminDashboard from './pages/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useTheme } from './contexts/ThemeContext'
+import ProtectedAdminRoute from './components/ProtectedAdminRoute'
 
 export default function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const isLandingPage = location.pathname === '/'
 
-  // Check authentication status on mount and location change
+  // Check authentication status and user role on mount and location change
   useEffect(() => {
     const token = localStorage.getItem('token')
-    setIsLoggedIn(!!token)
+    if (token) {
+      setIsLoggedIn(true)
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setUserRole(payload.role)
+      } catch (err) {
+        console.error('Failed to parse token:', err)
+        setUserRole(null)
+      }
+    } else {
+      setIsLoggedIn(false)
+      setUserRole(null)
+    }
   }, [location.pathname])
 
   // Handle scroll effect
@@ -33,11 +48,20 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Redirect to home if user is logged in and tries to access login/signup
+  // Redirect to appropriate dashboard if user is logged in and tries to access login/signup
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token && (location.pathname === '/login' || location.pathname === '/signup')) {
-      navigate('/home')
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        if (payload.role === 'ADMIN' || payload.role === 'MANAGER') {
+          navigate('/admin/dashboard')
+        } else {
+          navigate('/home')
+        }
+      } catch (err) {
+        navigate('/home')
+      }
     }
   }, [location.pathname, navigate])
 
@@ -50,8 +74,11 @@ export default function App() {
   const handleLogoClick = (e) => {
     if (isLoggedIn) {
       e.preventDefault()
-      // Refresh the current page
-      window.location.reload()
+      if (userRole === 'ADMIN' || userRole === 'MANAGER') {
+        navigate('/admin/dashboard')
+      } else {
+        navigate('/home')
+      }
     }
   }
 
@@ -67,7 +94,7 @@ export default function App() {
               to={isLoggedIn ? "#" : "/"} 
               onClick={handleLogoClick}
               className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
-              title={isLoggedIn ? "Refresh dashboard" : "Go to home"}
+              title={isLoggedIn ? "Go to dashboard" : "Go to home"}
             >
               <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 text-sm font-bold">
                 SM
@@ -109,13 +136,6 @@ export default function App() {
                 </>
               ) : isLoggedIn ? (
                 <>
-                  <Link 
-                    to="/home" 
-                    className="text-gray-700 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-white transition-colors relative group"
-                  >
-                    Dashboard
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gray-900 dark:bg-white group-hover:w-full transition-all duration-300"></span>
-                  </Link>
                   <Link 
                     to="/profile" 
                     className="text-gray-700 dark:text-gray-300 font-medium hover:text-gray-900 dark:hover:text-white transition-colors relative group"
@@ -209,12 +229,6 @@ export default function App() {
                 ) : isLoggedIn ? (
                   <>
                     <Link 
-                      to="/home"
-                      className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      Dashboard
-                    </Link>
-                    <Link 
                       to="/profile"
                       className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
@@ -270,6 +284,14 @@ export default function App() {
               <ProtectedRoute>
                 <Home />
               </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
             } 
           />
           <Route 
