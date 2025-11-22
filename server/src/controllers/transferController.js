@@ -275,6 +275,26 @@ const validateInternalTransfer = async (req, res) => {
       return res.status(400).json({ message: 'Transfer already validated' });
     }
 
+    // Validate stock availability before processing
+    for (const item of items) {
+      const transferItem = transfer.items.find(ti => ti.id === item.itemId);
+      if (transferItem && item.quantityTransferred > 0) {
+        const sourceStock = await prisma.stock.findFirst({
+          where: {
+            productId: transferItem.productId,
+            warehouseId: transfer.fromWarehouseId,
+            locationId: transfer.fromLocationId
+          }
+        });
+
+        if (!sourceStock || sourceStock.available < item.quantityTransferred) {
+          return res.status(400).json({ 
+            message: `Insufficient stock for product ${transferItem.product.name}. Available: ${sourceStock?.available || 0}, Requested: ${item.quantityTransferred}` 
+          });
+        }
+      }
+    }
+
     // Update transfer and stock in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update transfer items with transferred quantities

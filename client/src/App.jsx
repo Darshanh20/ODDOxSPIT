@@ -9,6 +9,7 @@ import ResetPassword from './pages/ResetPassword'
 import Profile from './pages/Profile'
 import Home from './pages/Home'
 import Products from './pages/Products'
+import MoveHistory from './pages/MoveHistory'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 
@@ -228,10 +229,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Move History</h1>
-                    <p className="text-gray-600 mt-2">Move History page coming soon...</p>
-                  </div>
+                  <MoveHistory />
                 </Layout>
               </ProtectedRoute>
             } 
